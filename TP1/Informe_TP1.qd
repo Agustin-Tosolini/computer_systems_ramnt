@@ -23,3 +23,17 @@ Desde el punto de vista de la ingenieria, ambas dimensiones resultan necesarias.
 
 En este informe se desarrollaran ambas lineas de trabajo de manera ordenada y con caracter tecnico. Se responderan las consignas propuestas por la catedra, se documentara la realizacion del tutorial de *time profiling* mediante capturas de pantalla y se incorporaran conclusiones fundamentadas acerca del comportamiento temporal de las funciones analizadas. De este modo, el trabajo no se limita a presentar resultados aislados, sino que busca construir una interpretacion critica de las mediciones obtenidas y de su utilidad para la toma de decisiones en sistemas de computacion.
 
+## Desarrollo
+
+### Benchmarking de hardware
+
+| **Componente** | **Tomas** | **Agustin** | **Javier** |
+|----------------|------------------|------------------|------------------|
+| Procesador     | Intel(R) Core(TM) i7-10700F CPU @ 2.90GHz | 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz | Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz |
+| Memoria RAM    | 16 GB DDR4 | 16 GB DDR4 |16 GB DDR4 |
+| Almacenamiento | 500 GB SSD NVMe | 500 GB SSD NVMe | 500 GB SSD NVMe |
+
+| **Benchmark** | **Tomas** | **Agustin** | **Javier** |
+|----------------|----------------|----------------|----------------|
+| SPEC CPU2006 | 1234 | 1234 | 1234 |
+| SPEC CPU2017 | 5678 | 5678 | 5678 |
