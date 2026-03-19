@@ -7,7 +7,7 @@
     **Integrantes:**
     - Brigido Tomas
     - Siñuka Javier
-    - Tosolini Agustio
+    - Tosolini Agustin
     
 ---
 
@@ -41,7 +41,12 @@ En este informe se desarrollaran ambas lineas de trabajo de manera ordenada y co
 | Memoria RAM    | 16 GB DDR4 | 16 GB DDR4 |16 GB DDR4 |
 | Almacenamiento | 256 GB SSD NVMe M.2 | 256Gb GB SSD NVMe | 500 GB SSD NVMe M.2 |
 
-### Rendimiento de los Procesadores en compilacion del Linux Kernel
+### Comparativa de Compilación de Linux Kernel
+
+| **Procesador** | **Arquitectura** | **Núcleos/Hilos** | **Tiempo Aprox. (defconfig)** |
+|-----------------|------------------|------------------|------------------|
+| Intel Core i5-13600K | Raptor Lake (13 Gen) | 14 (6P + 8E) / 20 | ~72 - 76 segundos |
+| AMD Ryzen 9 5900X | Zen 3 (Ryzen 5000) | 12 / 24 | ~82 - 86 segundos |
 
 ### Aceleracion Procesador Ryzen 9 7950X
 
