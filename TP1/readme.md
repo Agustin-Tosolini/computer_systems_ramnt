@@ -37,8 +37,7 @@ Reúne los archivos de código y resultados experimentales usados para la parte 
 
 - `test_gprof.c`: programa en C utilizado para realizar el análisis de profiling.
 - `test_gprof_new.c`: variante o versión modificada del programa original para nuevas pruebas o ajustes.
-- `test_gprof`: binario compilado del programa de prueba.
-- `gmon.out`: archivo generado por `gprof` con los datos de ejecución recolectados durante el profiling.
+
 
 ### `scripts/results/`
 
@@ -54,10 +53,10 @@ Cada uno de estos archivos registra la salida o el análisis derivado de `gprof`
 
 El propósito de este trabajo no es únicamente presentar resultados, sino también **interpretarlos** desde una perspectiva de ingeniería. En particular, se busca:
 
-- comprender qué mide cada benchmark y en qué contexto resulta útil;
-- analizar cómo influyen la arquitectura del procesador, la cantidad de núcleos, la memoria y el almacenamiento sobre el rendimiento;
-- observar que la performance de un programa depende tanto del hardware como de la distribución del costo computacional entre sus funciones;
-- desarrollar criterio técnico para evaluar resultados de benchmarking y profiling.
+- Comprender qué mide cada benchmark y en qué contexto resulta útil;
+- Analizar cómo influyen la arquitectura del procesador, la cantidad de núcleos, la memoria y el almacenamiento sobre el rendimiento;
+- Observar que la performance de un programa depende tanto del hardware como de la distribución del costo computacional entre sus funciones;
+- Desarrollar criterio técnico para evaluar resultados de benchmarking y profiling.
 
 ## Observaciones
 
