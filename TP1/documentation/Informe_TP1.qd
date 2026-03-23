@@ -191,6 +191,103 @@ Dentro de la sección `scripts/results` se encuentran en detalle los resultados 
 
 Como se puede observar, los resultados obtenidos para cada uno de los integrantes son distintos, ya que los componentes de cada computadora no son iguales. Podemos notar que los procesadores más rápidos tienen tiempos más pequeños en cada función, lo que se traduce en un mejor rendimiento.
 
+### Prueba de ESP32
+
+En esta sección se documenta la prueba realizada sobre la placa `ESP32`, con el
+objetivo de observar su comportamiento en un entorno de sistemas embebidos y
+relacionarlo con los conceptos de rendimiento analizados a lo largo del trabajo.
+Particularmente, interesa evaluar cómo responden sus recursos de procesamiento
+frente a una carga concreta, considerando las limitaciones propias de este tipo
+de plataformas en comparación con una computadora de propósito general.
+
+Para la realización del estudio se utilizó la plataforma virtual
+`https://wokwi.com/projects/new/esp32`, ya que no contábamos con el
+microcontrolador físico. Esta herramienta permitió simular el comportamiento de
+una placa `ESP32` y ejecutar pruebas sencillas de rendimiento en un entorno
+controlado, lo cual resulta útil para aproximar mediciones experimentales sin
+necesidad de disponer del hardware real.
+
+Con el objetivo de probar la velocidad del procesador, se utilizó el siguiente
+código, que configura la frecuencia de trabajo del CPU y luego ejecuta dos
+bucles de prueba: uno con operaciones enteras y otro con operaciones en punto
+flotante. De esta manera, se obtiene una medida aproximada del tiempo requerido
+por el microcontrolador para completar cargas de trabajo simples de naturaleza
+distinta.
+
+```c
+/* 
+ * Prueba de rendimiento ESP32
+ */
+
+void setup() {
+  // --- LINEA DE CONFIGURACION DE FRECUENCIA ---
+  setCpuFrequencyMhz(8);
+  // --------------------------------------------
+
+  Serial.begin(115200);
+  delay(1000);
+
+  uint32_t freq = getCpuFrequencyMhz();
+  Serial.print("Frecuencia actual del CPU: ");
+  Serial.print(freq);
+  Serial.println(" MHz");
+
+  // Variables volatile para que el compilador no ignore los calculos
+  volatile int32_t sumaEnteros = 0;
+  volatile float sumaFloats = 0.0;
+
+  long iteracionesInt = 12500000;
+  long iteracionesFloat = 800000;
+
+  Serial.println("\nIniciando prueba de 10 segundos aprox...");
+
+  // --- PRUEBA DE ENTEROS ---
+  unsigned long inicioInt = millis();
+  Serial.println("Ejecutando bucle de enteros...");
+  for (long i = 0; i < iteracionesInt; i++) {
+    sumaEnteros += 1;
+  }
+  unsigned long finInt = millis();
+  float tiempoInt = (finInt - inicioInt) / 1000.0;
+
+  // --- PRUEBA DE FLOATS ---
+  unsigned long inicioFloat = millis();
+  Serial.println("Ejecutando bucle de floats...");
+  for (long i = 0; i < iteracionesFloat; i++) {
+    sumaFloats += 1.1;
+  }
+  unsigned long finFloat = millis();
+  float tiempoFloat = (finFloat - inicioFloat) / 1000.0;
+
+  // --- RESULTADOS ---
+  Serial.println("---------- RESULTADOS ----------");
+  Serial.print("Tiempo Enteros: "); Serial.print(tiempoInt); Serial.println(" seg");
+  Serial.print("Tiempo Floats:  "); Serial.print(tiempoFloat); Serial.println(" seg");
+  Serial.print("Tiempo Total:   "); Serial.print(tiempoInt + tiempoFloat); Serial.println(" seg");
+  Serial.println("--------------------------------");
+}
+
+void loop() {
+  // Nada por aqui
+}
+```
+
+La prueba propuesta resulta adecuada para un análisis introductorio, ya que
+permite observar cómo impacta la frecuencia del procesador sobre el tiempo de
+ejecución de operaciones básicas. Además, la diferenciación entre enteros y
+floats es relevante porque ambos tipos de cálculo ejercen demandas distintas
+sobre la unidad de procesamiento. En consecuencia, este experimento constituye
+una forma simple pero representativa de estudiar el rendimiento del `ESP32`
+dentro del enfoque general del trabajo práctico.
+
+A continuación, se presentan capturas correspondientes a ejecuciones realizadas
+con frecuencias de `4 MHz` y `8 MHz`, lo que permite comparar visualmente el
+efecto de la configuración del procesador sobre los tiempos reportados.
+
+| 4mhz | 8mhz |
+|------|------|
+| ![](../assets/4mhz.png) | ![](../assets/8mhz.png) |
+
 ## Conclusión
 
 En este trabajo práctico se analizaron dos aspectos centrales del rendimiento en sistemas de computación: por un lado, el uso de benchmarks de hardware permitió relacionar métricas de desempeño con actividades concretas como navegación, gaming, compilación y multitarea; por otro, el uso de `gprof` hizo posible estudiar el comportamiento de programas propios y observar cómo las diferencias de hardware influyen en los tiempos de ejecución. En conjunto, el trabajo permitió comprender que el rendimiento depende tanto de los componentes del sistema como del tipo de tarea analizada y de las herramientas utilizadas para medirlo.
