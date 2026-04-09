@@ -1,0 +1,15 @@
+services:
+  gini_pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace
+    environment:
+      PROJECT_DIR: /workspace
+      BUILD_DIR: /workspace/runtime/build
+      LOG_DIR: /workspace/runtime/logs
+      LIBRARY_PATH: /workspace/runtime/build/libfloat_to_int.so
+    volumes:
+      - ./:/workspace
+      - ./runtime:/workspace/runtime
+    command: ["bash", "/workspace/run_pipeline.sh"]
