@@ -16,28 +16,30 @@
 
 ## Introducción
 
-El presente trabajo práctico propone desarrollar una solución que combine
-distintas capas de software y bajo nivel para resolver una tarea concreta de
-procesamiento de datos. En particular, el proyecto toma como fuente de
-información la API pública del Banco Mundial, extrae valores del índice de
-Gini para un rango de años determinado y luego aplica sobre dichos datos una
-etapa de transformación implementada mediante la integración entre Python, C y
-lenguaje ensamblador.
+El presente trabajo práctico se centra en el estudio y la verificación de las
+convenciones de llamada entre distintos lenguajes y niveles de abstracción. El
+objetivo principal del proyecto no es solamente procesar un conjunto de datos,
+sino comprobar en la práctica cómo deben intercambiarse argumentos, valores de
+retorno y estructuras de memoria cuando intervienen componentes escritos en
+Python, C y lenguaje ensamblador.
 
-El objetivo principal del trabajo consiste en ejercitar conceptos centrales de
-la materia desde una perspectiva aplicada. Por un lado, se trabaja con
-consumo de servicios externos y manipulación de datos en un lenguaje de alto
-nivel. Por otro, se incorpora una biblioteca nativa compilada y una rutina en
-Assembly para observar cómo interactúan distintos niveles de abstracción dentro
-de un mismo sistema. Esta aproximación permite vincular programación de
-aplicaciones, interoperabilidad con código nativo, convenciones de llamada,
-representación de datos en memoria y automatización de la ejecución.
+Para llevar adelante esta comprobación, el proyecto utiliza un conjunto de
+herramientas que permiten poner a prueba dicha convención de llamada en un
+escenario real. Python se emplea como lenguaje de orquestación y como punto de
+entrada del sistema; C funciona como capa intermedia para definir una interfaz
+estable con la rutina nativa; y Assembly implementa la lógica de conversión
+numérica. A su vez, el uso de `ctypes`,
+bibliotecas compartidas, scripts de compilación y contenedores Docker permite
+verificar que la comunicación entre capas se produzca correctamente y de forma
+reproducible.
 
-Además, el proyecto incluye una variante contenida dentro de Docker, lo que
-agrega una dimensión práctica relevante en términos de portabilidad y
-reproducibilidad. De este modo, el trabajo no solo se limita a resolver el
-problema funcional, sino que también busca ofrecer una estructura de ejecución
-más ordenada y fácilmente replicable en distintos entornos.
+Con el fin de contar con datos reales sobre los cuales ejecutar estas pruebas,
+se toma como fuente la API pública del Banco Mundial y se trabaja con valores
+del índice de Gini. De este modo, el proyecto combina un caso concreto de
+procesamiento de datos con un objetivo técnico más profundo: validar que las
+convenciones de llamada se respeten correctamente a lo largo de todo el flujo,
+desde la obtención de la información hasta la ejecución del código nativo y la
+recuperación de los resultados en Python.
 
 ## Descripción General del Proyecto
 
