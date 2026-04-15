@@ -43,12 +43,14 @@ recuperación de los resultados en Python.
 
 ## Descripción General del Proyecto
 
-En este proyecto se pueden encontrar dos variantes del trabajo. La primera,
+En este proyecto se pueden encontrar tres variantes del trabajo. La primera,
 `without_docker`, representa una aproximación inicial en la que Python obtiene
 los datos y delega la conversión a una biblioteca de 32 bits utilizando
 `msl.loadlib`. La segunda, `docker_test`, constituye una versión más integrada
 del flujo completo, donde la compilación del código nativo y la ejecución del
-pipeline se realizan dentro de un contenedor Docker.
+pipeline se realizan dentro de un contenedor Docker. Y por ultimo, la variante
+`c_program` se orienta a la observación del comportamiento interno del programa
+desde GDB, concentrando toda la lógica en un único binario escrito en C.
 
 Desde el punto de vista funcional, ambas variantes comparten la misma idea
 general: partir de un conjunto de valores del índice de Gini, convertirlos de
@@ -97,28 +99,28 @@ El flujo de esta variante puede describirse de la siguiente manera:
 
 ### Componentes principales
 
-`main.py` implementa la consulta externa, el filtrado y la prueba de extremo a
+**`main.py`** implementa la consulta externa, el filtrado y la prueba de extremo a
 extremo. La función `obtener_gini_pais` construye una URL de la API, descarga
 la respuesta JSON y extrae los valores válidos para el país solicitado.
 
-`client.py` define la clase `ClienteBridge`, que hereda de `Client64` y utiliza
+**`client.py`** define la clase `ClienteBridge`, que hereda de `Client64` y utiliza
 el método `request32` para comunicarse con el servidor de 32 bits.
 
-`server.py` define la clase `Server`, heredada de `Server32`. Allí se carga la
+**`server.py`** define la clase `Server`, heredada de `Server32`. Allí se carga la
 biblioteca compartida, se especifica la firma de la función nativa y se
 transforman las listas Python en arreglos de `ctypes`.
 
-`bridge.c` contiene la función `bridge`, encargada de recorrer un arreglo de
+**`bridge.c`** contiene la función `bridge`, encargada de recorrer un arreglo de
 `float` y aplicar la función `convert` sobre cada elemento, dejando el
 resultado en un arreglo de enteros.
 
-`convert.asm` implementa la conversión de un `float` a `int` mediante la FPU,
+**`convert.asm`** implementa la conversión de un `float` a `int` mediante la FPU,
 y posteriormente incrementa el resultado en una unidad. Esto significa que en
 esta primera versión la lógica de `+1` forma parte del código Assembly.
 
 ## Variante `docker_test`
 
-La variante `docker_test` representa la versión más madura del proyecto. Aquí se
+La variante `docker_test` representa una version automatizada del proyecto. Aquí se
 encuentra un pipeline completo donde Python obtiene los datos, delega la
 conversión a una biblioteca nativa compilada dentro del contenedor, ajusta los
 resultados y genera una visualización final.
@@ -232,88 +234,280 @@ etapa de transformación ni la generación del gráfico. Su inclusión es útil 
 extensión del trabajo, ya que muestra cómo el proyecto también puede exponer
 datos a otros consumidores.
 
-## Automatización con Docker
+## Variante `c_program`
 
-La contenerización del proyecto está resuelta mediante `Dockerfile`,
-`docker-compose.yml` y `run_pipeline.sh`.
+Además de las dos variantes principales del proyecto, se desarrolló una carpeta
+adicional llamada `c_program`, orientada específicamente a la observación del
+comportamiento interno del programa desde GDB. A diferencia de `docker_test`,
+en esta versión no existe una capa de orquestación en Python durante la
+ejecución normal, sino que todo el flujo principal se resuelve dentro de un
+único programa escrito en C.
 
-### Dockerfile
+La motivación de esta variante no es reemplazar el pipeline integrado con
+Python, sino ofrecer una versión más controlada y directa del problema para
+analizar stack frames, variables locales, buffers y estructuras de memoria en
+tiempo de ejecución. Esto resulta especialmente útil desde el punto de vista de
+Sistemas de Computación, porque permite observar con mayor claridad el paso de
+argumentos, la disposición de datos en memoria y la evolución del estado
+interno del programa a lo largo de distintas funciones.
 
-El `Dockerfile` parte de la imagen `python:3.12-slim`, instala
-`build-essential` y `nasm`, copia el proyecto al directorio de trabajo y luego
-instala las dependencias Python definidas en `requirements.txt`. Estas
-dependencias son:
+### Objetivo de la variante
 
-| **Paquete** | **Versión** |
-|-------------|-------------|
-| Flask | 3.1.0 |
-| matplotlib | 3.10.0 |
+La variante `c_program` busca reproducir la misma idea general del trabajo,
+pero concentrando todo el procesamiento en C. El flujo implementado puede
+resumirse del siguiente modo:
 
-Esta imagen resulta adecuada para el trabajo porque incorpora un entorno Python
-moderno y agrega únicamente las herramientas necesarias para compilar C y
-Assembly.
+1. Construir desde C una consulta hacia la API del Banco Mundial.
+2. Establecer una conexión HTTPS con el servidor remoto.
+3. Descargar la respuesta HTTP completa.
+4. Separar manualmente los headers del cuerpo JSON.
+5. Filtrar los registros del país solicitado.
+6. Convertir cada valor `float` a `int`.
+7. Sumar una unidad a cada valor convertido.
+8. Mostrar una tabla y un gráfico ASCII por consola.
 
-### Script de ejecución
+De esta manera, la lógica de negocio y la lógica de comunicación con el
+servicio externo quedan integradas dentro del mismo binario, lo que facilita el
+seguimiento paso a paso mediante depuración.
 
-El archivo `run_pipeline.sh` automatiza el proceso completo:
+### Organización de archivos
 
-1. Crea directorios de salida para compilación y logs.
-2. Compila `float_to_int.asm` con NASM a un objeto ELF64.
-3. Genera la biblioteca compartida `libfloat_to_int.so` con GCC.
-4. Ejecuta `api.py` con Python 3.
+La carpeta `c_program` contiene una estructura más reducida que la de
+`docker_test`, compuesta por tres elementos principales:
 
-Con esta secuencia, cualquier usuario que construya el contenedor puede
-reproducir el pipeline sin realizar configuraciones manuales en su sistema
-anfitrión.
+| **Archivo** | **Responsabilidad principal** |
+|-------------|-------------------------------|
+| `main.c` | Implementa toda la lógica del flujo en C. |
+| `Makefile` | Compila el programa y genera el ejecutable en `build/`. |
+| `README.md` | Documenta la ejecución, pruebas de uso y ejemplos de GDB. |
 
-### Docker Compose
+El ejecutable resultante se almacena en la carpeta `build` bajo el nombre
+`gini_client`, permitiendo separar el código fuente del binario compilado.
 
-El archivo `docker-compose.yml` define el servicio `gini_pipeline`, monta el
-proyecto dentro de `/workspace`, fija variables de entorno para las rutas de
-build y logs, y ejecuta el script principal. Esta capa agrega comodidad para la
-puesta en marcha y hace más clara la configuración de ejecución del trabajo.
+### Consulta HTTPS desde C
 
-## Flujo Completo del Sistema
+Uno de los aspectos más relevantes de esta variante es que la consulta a la API
+externa se realiza directamente desde C. Para ello, el programa utiliza una
+combinación de sockets POSIX y OpenSSL.
 
-La lógica integral del proyecto, tomando como referencia principal la variante
-`docker_test`, puede resumirse con el siguiente esquema:
+La función `connect_tcp_socket` resuelve la dirección del host y establece la
+conexión TCP base. Luego, `open_tls_connection` construye el contexto TLS,
+realiza el handshake criptográfico y verifica el certificado del servidor. Una
+vez establecida la conexión segura, `fetch_https_response` envía una petición
+HTTP `GET` al endpoint del Banco Mundial y almacena la respuesta completa en un
+buffer dinámico reservado en memoria.
 
-1. Python construye la consulta a la API del Banco Mundial.
-2. Se descargan los registros del indicador GINI.
-3. Se filtran los datos correspondientes al país elegido.
-4. Los valores se transforman en un arreglo de `float` manejable por `ctypes`.
-5. Python invoca una función exportada por una biblioteca compartida.
-6. C valida los argumentos y llama a la rutina Assembly.
-7. Assembly convierte cada valor `float` a `int`.
-8. Python recibe el arreglo convertido.
-9. Se suma `+1` a cada resultado.
-10. Se genera un gráfico PNG y se almacenan los resultados.
+Este diseño hace explícito un conjunto de mecanismos que en Python suelen estar
+ocultos detrás de bibliotecas de alto nivel. En consecuencia, el alumno puede
+observar con más detalle qué ocurre entre la construcción de la consulta y la
+recepción del payload remoto.
 
-Este encadenamiento muestra con claridad cómo un mismo problema puede
-resolverse distribuyendo responsabilidades entre distintos niveles
-tecnológicos. Lejos de ser una implementación puramente académica, el trabajo
-refleja un patrón real de integración entre lógica de aplicación y componentes
-nativos.
+### Parseo y filtrado del JSON
 
-## Aspectos Relevantes de Sistemas de Computación
+Tras recibir la respuesta HTTP, el programa separa la cabecera del cuerpo con
+la función `extract_http_body`. Luego, la función
+`parse_world_bank_json` recorre manualmente el contenido JSON utilizando
+búsquedas sobre cadenas y conversiones con funciones estándar como `strtol` y
+`strtof`.
 
-Desde la perspectiva de la materia, este trabajo permite discutir varios temas
-importantes:
+Si bien esta estrategia no pretende ser la solución más robusta posible para
+procesamiento general de JSON, resulta adecuada para un trabajo académico
+porque vuelve visible el tratamiento explícito de la memoria y de la
+representación textual de los datos. Cada coincidencia válida se copia en una
+estructura `IndicatorPoint`, que conserva:
 
-| **Concepto** | **Aplicación en el proyecto** |
-|--------------|-------------------------------|
-| Convención de llamada | El código nativo debe respetar la ABI esperada por C y Python. |
-| Representación de datos | Los valores pasan de JSON a `float`, luego a `int` y finalmente a imagen o JSON. |
-| Interoperabilidad | Se enlazan componentes escritos en distintos lenguajes. |
-| Memoria | Se manipulan punteros, arreglos contiguos y tipos primitivos. |
-| Portabilidad | Docker encapsula herramientas y dependencias del entorno. |
-| Modularidad | El pipeline se divide en etapas con responsabilidades específicas. |
+- el año del registro;
+- el valor original en punto flotante;
+- el valor convertido a entero;
+- el valor final ajustado con `+1`.
 
-En particular, la interoperabilidad entre Python, C y Assembly obliga a tener
-en cuenta detalles que en un programa puramente de alto nivel suelen quedar
-ocultos. Tipos de datos, tamaño de palabra, paso de argumentos, formato del
-objeto compilado y convenciones de ejecución se vuelven aspectos explícitos del
-diseño y de la depuración.
+Posteriormente, `sort_points_by_year` ordena los puntos obtenidos para
+presentarlos en forma cronológica.
+
+### Transformación y salida final
+
+Una vez construidos los registros válidos, la función `convert_points_to_int`
+trunca cada valor flotante a entero. Luego, `increment_points` aplica el ajuste
+de `+1` sobre cada elemento convertido. En esta variante, ambas operaciones se
+realizan directamente en C, sin intervención de Assembly ni de una biblioteca
+compartida.
+
+El resultado final se presenta de dos maneras complementarias. En primer
+lugar, `print_table` muestra una tabla con año, valor original, valor entero y
+valor ajustado. En segundo lugar, `plot_points_console` genera una
+representación ASCII donde la longitud de cada barra depende del valor final.
+Este formato es simple, pero suficiente para evidenciar visualmente la
+transformación de los datos sin depender de bibliotecas gráficas externas.
+
+### Compilación y depuración
+
+La compilación se resuelve mediante un `Makefile` que utiliza `gcc` con las
+opciones `-O0`, `-g` y `-fno-omit-frame-pointer`. Estas banderas no son
+accidentales: están elegidas para favorecer la depuración con GDB, preservando
+información simbólica y una disposición de stack más fácil de inspeccionar.
+
+Además, el `README.md` asociado a esta variante incluye:
+
+- comandos de compilación y ejecución;
+- casos de prueba con distintos países y rangos de años;
+- ejemplos de inspección del stack antes, durante y después de funciones clave;
+- secuencias de uso de GDB sobre `main`, `fetch_https_response`,
+  `extract_http_body`, `parse_world_bank_json`, `convert_points_to_int` e
+  `increment_points`.
+
+Esto convierte a `c_program` en una variante particularmente valiosa para el
+análisis interno del programa, ya que facilita observar cómo cambian los
+frames, las variables locales y los buffers de memoria a medida que avanza el
+flujo.
+
+## Análisis de Memoria con GDB
+
+Una vez desarrollada la variante `c_program`, se utilizó GDB para observar el
+estado del stack antes, durante y después de la función
+`parse_world_bank_json`. Esta función es especialmente relevante porque
+constituye el punto donde la respuesta HTTP ya fue descargada y el programa
+comienza a interpretar activamente el contenido JSON para poblar la estructura
+de datos `IndicatorPoint`.
+
+El objetivo de esta etapa no fue solamente verificar que el programa funcione,
+sino estudiar cómo cambia la memoria del stack cuando se pasa desde `main` al
+análisis interno del JSON y luego se retorna nuevamente al llamador. Para ello,
+se trabajó con comandos como `up`, `down`, `info frame`, `info locals`,
+`info args`, `print` y `x/32gx $sp`, que permiten inspeccionar tanto la
+organización lógica de los frames como el contenido crudo de memoria asociado
+al stack pointer.
+
+### Secuencia 1: estado previo al análisis
+
+En la primera captura se observa el estado del programa una vez alcanzado el
+breakpoint de `parse_world_bank_json`, pero visualizado desde el frame del
+llamador, es decir, `main`. Para llegar a este punto se usó `up`, con lo cual
+GDB sube un nivel en la pila de llamadas y deja visible el contexto desde el
+cual la función de análisis fue invocada.
+
+!(900X650)[Estado del stack antes del análisis](./media/Antes.jpeg)
+
+En este momento, `info frame` indica que el frame activo corresponde a `main`,
+y `info locals` muestra variables ya preparadas para la llamada, entre ellas:
+
+- `country = "Argentina"`;
+- `start_year = 2011`;
+- `end_year = 2020`;
+- `request_path` ya armado con la URL del indicador;
+- `http_response` y `response_body` apuntando al buffer recibido;
+- `response_size` con el tamaño de la respuesta descargada;
+- `points` todavía inicializado con valores nulos;
+- `point_count = 0`.
+
+La observación más importante desde el punto de vista del stack es que el frame
+de `main` ya contiene todas las direcciones y punteros necesarios para invocar
+la rutina de análisis, pero aún no presenta resultados procesados. En la
+volcada de memoria realizada con `x/32gx $sp` predominan punteros, direcciones
+de retorno y zonas todavía en cero. Esto refleja un estado previo al trabajo de
+parseo: el stack ya sostiene el contexto de la llamada, pero las estructuras de
+salida aún no fueron completadas.
+
+### Secuencia 2: estado durante la ejecución de `parse_world_bank_json`
+
+La segunda captura muestra el estado interno una vez que se retorna al frame de
+`parse_world_bank_json` mediante `down`. Aquí el análisis ya se encuentra
+ejecutándose dentro de su propio contexto de activación.
+
+!(900X650)[Estado del stack durante el análisis](./media/Durante.jpeg)
+
+El comando `info frame` confirma que el frame activo ahora es el de
+`parse_world_bank_json`, y `info args` exhibe los argumentos efectivamente
+recibidos por la función:
+
+- `json_body`, apuntando al inicio del contenido JSON;
+- `country_name`, con el valor `"Argentina"`;
+- `points`, apuntando al arreglo donde se guardarán los resultados;
+- `max_points = 64`;
+- `resolved_country`, apuntando al buffer de salida;
+- `resolved_country_size = 128`.
+
+Por su parte, `info locals` deja ver la creación de variables internas propias
+del análisis, como `cursor`, `count` y buffers auxiliares. Aquí aparece uno de
+los fenómenos más importantes para la materia: al entrar en una nueva función,
+el stack crece y se construye un frame adicional que contiene:
+
+- la dirección de retorno al llamador;
+- el `rbp` guardado del frame anterior;
+- el espacio reservado para argumentos y variables locales;
+- copias temporales y punteros auxiliares usados por el parseo.
+
+En la captura, la volcada de `x/32gx $sp` muestra una memoria mucho más activa
+que en la etapa previa. Ya no predominan únicamente zonas en cero, sino valores
+que corresponden a direcciones válidas, fragmentos de texto del JSON e
+información temporal del algoritmo. En otras palabras, el stack deja de ser un
+simple soporte de invocación y pasa a contener el estado de trabajo concreto de
+la función. Esta transición es precisamente la evidencia de cómo el stack se
+modifica dinámicamente al entrar en una rutina con lógica propia.
+
+### Secuencia 3: estado posterior al retorno desde la función
+
+La tercera captura corresponde al momento posterior al retorno desde
+`parse_world_bank_json` hacia `main`. En este punto, la rutina de análisis ya
+finalizó y el programa vuelve a ejecutarse en el frame llamador.
+
+!(900X650)[Estado del stack después del análisis](./media/Despues.jpeg)
+
+Aquí `info frame` vuelve a mostrar `main` como contexto activo, pero con una
+diferencia fundamental respecto de la primera secuencia: las variables de salida
+ya fueron modificadas por la función llamada. En particular, se observa que:
+
+- `point_count` deja de valer `0` y pasa a reflejar la cantidad de registros
+  encontrados;
+- `resolved_country` contiene efectivamente la cadena `"Argentina"`;
+- el arreglo `points` ya no está vacío, sino que sus primeras posiciones poseen
+  valores concretos, por ejemplo `year = 2020` y
+  `original_value = 42.700008`.
+
+Desde la perspectiva del stack, lo central es que el frame local de
+`parse_world_bank_json` desaparece al completarse la función. Sus variables
+internas dejan de existir como contexto activo y el stack vuelve a quedar
+dominado por el frame de `main`. Sin embargo, los efectos de la función
+permanecen, porque los datos relevantes fueron escritos a través de punteros en
+regiones de memoria accesibles por el llamador.
+
+La comparación entre la primera y la tercera imagen evidencia con claridad este
+comportamiento: el stack en `main` recupera su forma general, pero las zonas
+referenciadas por `points` y `resolved_country` ya contienen información útil.
+Es decir, el frame de la función analizada se destruye, pero los cambios
+producidos sobre memoria compartida o pasada por referencia permanecen
+observables una vez que el control retorna.
+
+### Interpretación general de la variación del stack
+
+Las tres secuencias permiten extraer una lectura precisa sobre el
+comportamiento de la pila de ejecución:
+
+1. Antes de entrar en la función, el stack de `main` contiene argumentos,
+   punteros y buffers preparados, pero todavía no hay resultados del análisis.
+2. Durante la ejecución de `parse_world_bank_json`, se crea un nuevo frame que
+   agrega variables locales, direcciones temporales y estado intermedio del
+   algoritmo.
+3. Después del retorno, ese frame desaparece, pero los datos escritos por la
+   función quedan reflejados en las estructuras visibles desde `main`.
+
+Desde el punto de vista de Sistemas de Computación, esta observación es
+particularmente valiosa porque muestra de manera concreta varios conceptos de
+la materia:
+
+- la creación y destrucción de stack frames;
+- el uso de `rbp` y `rsp` para organizar la pila;
+- la distinción entre variables locales y datos persistentes escritos por
+  referencia;
+- el papel de la dirección de retorno y de los registros guardados;
+- la relación entre la convención de llamada y la disposición real de la
+  memoria durante la ejecución.
+
+En síntesis, la depuración realizada con GDB confirma no solo el funcionamiento
+correcto del programa, sino también la forma en que la memoria del stack cambia
+al atravesar una llamada a función con procesamiento interno significativo. La
+combinación entre comandos de inspección textual y soporte visual mediante las
+capturas permite transformar la ejecución del programa en una evidencia clara
+del comportamiento dinámico de la pila.
 
 ## Conclusión
 
