@@ -394,8 +394,14 @@ static void sort_points_by_year(IndicatorPoint *points, int count) {
 }
 
 static void convert_points_to_int(IndicatorPoint *points, int count) {
+    int reference_value = 0;
     for (int index = 0; index < count; ++index) {
         points[index].converted_value = (int) points[index].original_value;
+        reference_value = points[index].converted_value + 0.5;
+
+        if (points[index].original_value - reference_value >= 0.5f) {
+            points[index].converted_value += 1;
+        }
     }
 }
 
