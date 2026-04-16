@@ -174,7 +174,7 @@ Dentro de GDB:
 break parse_world_bank_json
 run Argentina
 finish
-print count
+print point_count
 print points[0]
 print points[1]
 ```
