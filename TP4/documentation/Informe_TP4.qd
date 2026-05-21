@@ -5,12 +5,14 @@
     
     #! Trabajo Práctico 4 - Sistemas de Computación
     
-    !(600X600)[Alt](../../TP1/assets/Sello_institucional_V2.png)
+    !(550x550)[Alt](../../TP1/assets/Sello_institucional_V2.png)
     
     **Integrantes:**
     - Brigido Tomás
     - Siñuka Javier
     - Tosolini Agustín
+
+    **Link del repositorio:** https://github.com/Javier-Sinuka/computer_systems_ramnt/tree/main/TP4
 
 .tableofcontents
 
@@ -110,6 +112,8 @@ Dentro de la práctica, el módulo `des_generic.ko.zst` constituye un ejemplo re
 Cuando el driver de un dispositivo no está disponible, el kernel no puede asociar correctamente una implementación de control a ese hardware o a esa interfaz lógica. Como consecuencia, el dispositivo puede no ser detectado, puede aparecer identificado solo de manera genérica o puede quedar visible pero sin funcionalidad utilizable desde el espacio de usuario. En términos prácticos, esto implica pérdida total o parcial del servicio asociado: ausencia de conectividad en una placa de red, falta de audio, imposibilidad de montar un dispositivo de almacenamiento, o carencia de aceleración gráfica, entre otros casos.
 
 ## 4. Correr `hwinfo` en una PC real con hardware real y agregar la URL de la información de hardware en el reporte.
+
+URL: https://gist.github.com/Agustin-Tosolini/7c232021e65db62ec3a8f9801e77ae68
 
 ## 5. ¿Qué diferencia existe entre un módulo y un programa?
 
