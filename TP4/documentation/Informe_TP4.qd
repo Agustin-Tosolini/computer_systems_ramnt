@@ -131,13 +131,98 @@ Si se desea conservar la traza para su análisis posterior, resulta conveniente 
 
 Un `segmentation fault` es una excepción provocada por un acceso inválido a memoria por parte de un proceso, por ejemplo al intentar desreferenciar un puntero nulo, escribir en una página sin permisos de escritura o acceder a una dirección que no pertenece a su espacio virtual válido. En esencia, representa una violación de la política de protección de memoria impuesta por la arquitectura y administrada por el sistema operativo.
 
-El kernel lo maneja a partir de la excepción de hardware correspondiente, típicamente un `page fault`. Cuando la MMU detecta un acceso no permitido, transfiere el control al kernel, que analiza si la referencia puede resolverse legítimamente o si constituye un acceso inválido. Si el acceso no es recuperable dentro del contexto del proceso, el kernel envía la señal `SIGSEGV` al programa responsable. El comportamiento por defecto del programa ante esa señal es finalizar su ejecución, y en muchos casos puede generarse además un `core dump` para depuración. No obstante, un programa también puede instalar un manejador para `SIGSEGV`; aun así, eso no convierte al error en algo seguro de continuar, sino que solo habilita tareas de registro, limpieza controlada o diagnóstico antes de terminar.
+En el caso de un programa que se ejecuta en `user space`, el kernel detecta y maneja el fallo a partir de la excepción de hardware correspondiente, típicamente un `page fault`. Cuando la MMU detecta un acceso no permitido, transfiere el control al kernel, que analiza si la referencia puede resolverse legítimamente o si constituye un acceso inválido. Si el acceso no es recuperable dentro del contexto del proceso, el kernel envía la señal `SIGSEGV` al programa responsable. El comportamiento por defecto del programa ante esa señal es finalizar su ejecución, y en muchos casos puede generarse además un `core dump` para depuración. No obstante, un programa también puede instalar un manejador para `SIGSEGV`; aun así, eso no convierte al error en algo seguro de continuar, sino que solo habilita tareas de registro, limpieza controlada o diagnóstico antes de terminar.
+
+Si un error análogo ocurre en `kernel space`, por ejemplo dentro del propio kernel o de un módulo cargable, la situación es más grave. En ese contexto no se trata simplemente de terminar un proceso aislado, porque el código que falló se está ejecutando con privilegios máximos y comparte el espacio del núcleo. En consecuencia, el kernel suele producir un `oops` y registrar el fallo; según su severidad, el sistema puede continuar en un estado inestable o derivar en un `kernel panic`, comprometiendo al sistema completo.
 
 ## 8. ¿Se animan a intentar firmar un módulo de kernel? ¿Y documentar el proceso?
 
-<https://askubuntu.com/questions/770205/how-to-sign-kernel-modules-with-sign-file>
+En esta etapa se intentó firmar un módulo de kernel propio y verificar su comportamiento con `Secure Boot` habilitado. La experiencia mostró primero que un módulo no firmado podía ser rechazado por la política de integridad del sistema, y luego permitió comprobar que, una vez firmado correctamente y asociado a una clave confiable mediante `MOK`, el mismo módulo podía cargarse y descargarse sin inconvenientes.
 
-## 9. Agregar evidencia de la compilación, carga y descarga de su propio módulo imprimiendo el nombre del equipo en los registros del kernel.
+Como condición inicial, se verificó mediante los mensajes del kernel que la máquina estuviera ejecutándose con las restricciones de integridad asociadas a `Secure Boot`. Esta observación permitió contextualizar por qué un módulo externo no firmado sería rechazado al intentar insertarlo en el núcleo.
+
+```bash
+dmesg | tail
+```
+
+![](../files_project/signed-kernel-module/img/secure-boot.enabled.png "Mensajes del kernel asociados al entorno con Secure Boot habilitado")
+
+Luego se compiló el módulo a partir del `Makefile` preparado para construir `signed_module.ko` usando el sistema de build del kernel en ejecución.
+
+```bash
+cd ../files_project/signed-kernel-module
+make
+```
+<<<
+![](../files_project/signed-kernel-module/img/compilacion-modulo.png "Compilación del módulo signed_module")
+
+Una vez obtenido el archivo `.ko`, se intentó cargarlo directamente para comprobar el efecto de `Secure Boot` sobre un módulo aún no firmado. En este punto, el kernel rechazó la operación, lo cual confirmó que la política de verificación de firmas estaba actuando sobre módulos externos.
+
+```bash
+sudo insmod signed_module.ko
+```
+
+![](../files_project/signed-kernel-module/img/carga-modulo-sin-firmar.png "Intento de carga del módulo sin firmar")
+
+Para resolverlo, se generó un par de claves: una clave privada para firmar el módulo y un certificado público en formato DER para ser enrolado posteriormente como clave confiable.
+
+```bash
+mkdir -p ~/module-signing
+openssl req -new -x509 -newkey rsa:2048 \
+  -keyout ~/module-signing/MOK.priv \
+  -outform DER -out ~/module-signing/MOK.der \
+  -nodes -days 3650 \
+  -subj "/CN=RAMNT Module Signing/"
+```
+
+![](../files_project/signed-kernel-module/img/generacion-claveprivada-certificado-publico.png "Generación de la clave privada y del certificado público")
+
+Con la clave ya disponible, se procedió a firmar el módulo mediante el script `sign-file` provisto por los headers del kernel. Este paso incrusta la firma digital dentro del archivo `.ko`.
+
+```bash
+/usr/src/linux-headers-$(uname -r)/scripts/sign-file sha512 \
+  ~/module-signing/MOK.priv \
+  ~/module-signing/MOK.der \
+  signed_module.ko
+modinfo signed_module.ko
+```
+
+![](../files_project/signed-kernel-module/img/modulo-firmado.png "Firma del módulo y verificación con modinfo")
+
+Sin embargo, firmar el módulo no es suficiente por sí solo: el sistema también debe confiar en la clave utilizada. Por eso se importó el certificado público con `mokutil`, dejando pendiente su enrolamiento para el próximo arranque.
+
+```bash
+sudo mokutil --import ~/module-signing/MOK.der
+```
+![](../files_project/signed-kernel-module/img/clave-publica-en-MOK.png "Creación de la clave pública enrolada en MOK")
+
+![](../files_project/signed-kernel-module/img/mokutil.png "Confirmación de la clave en MOK Manager")
+
+Tras reiniciar el equipo, apareció la interfaz de `MOK Manager`, desde la cual se confirmó manualmente la incorporación de la clave. Este paso resulta necesario porque la incorporación a la base de confianza no se realiza de manera automática desde el sistema operativo en ejecución, sino durante el proceso de arranque seguro.
+
+Una vez completado el enrolamiento, se verificó desde Linux que la clave pública hubiera quedado efectivamente registrada entre las claves aceptadas por el sistema.
+
+```bash
+mokutil --list-enrolled
+```
+
+
+![](../files_project/signed-kernel-module/img/clave-confirmada.png "Comprobación de la clave del modulo con la clave registrada en linux")
+
+
+
+Con la clave ya confiable, fue posible cargar y descargar el módulo firmado correctamente. Además, el propio módulo dejó evidencia en los registros del kernel mediante `printk`, imprimiendo mensajes al cargar y al descargar.
+
+```bash
+sudo insmod signed_module.ko
+dmesg | tail
+sudo rmmod signed_module
+dmesg | tail
+```
+
+![](../files_project/signed-kernel-module/img/pirnt-carga-descarga.png "Mensajes de carga y descarga del módulo en los registros del kernel")
+
+En conclusión, la práctica permitió comprobar que la aceptación de un módulo con `Secure Boot` habilitado no depende solamente de compilarlo correctamente, sino de dos condiciones simultáneas: que el archivo esté firmado y que la clave correspondiente forme parte de la cadena de confianza del sistema. Cuando ambas condiciones se cumplieron, el módulo pudo cargarse y descargarse normalmente.
 
 ## 10. ¿Qué pasa si mi compañero con `Secure Boot` habilitado intenta cargar un módulo firmado por mí?
 

@@ -1,0 +1,346 @@
+Reporte de drivers y modulos del kernel
+Generado: 2026-05-22 14:21:19 -03
+Equipo: tomas-H410M-H-V3
+Kernel: 6.17.0-29-generic
+
+=== MODULOS CARGADOS ===
+Module                  Size  Used by
+snd_seq_dummy          12288  0
+rfcomm                 98304  4
+snd_hrtimer            12288  1
+nvidia_uvm           2052096  0
+nf_tables             385024  0
+qrtr                   53248  2
+cmac                   12288  3
+algif_hash             16384  1
+algif_skcipher         12288  1
+af_alg                 32768  6 algif_hash,algif_skcipher
+bnep                   32768  2
+binfmt_misc            24576  1
+nls_iso8859_1          12288  1
+intel_rapl_msr         20480  0
+intel_rapl_common      53248  1 intel_rapl_msr
+intel_uncore_frequency    12288  0
+intel_uncore_frequency_common    20480  1 intel_uncore_frequency
+rtw88_8821cu           12288  0
+rtw88_8821c            98304  1 rtw88_8821cu
+rtw88_usb              28672  1 rtw88_8821cu
+snd_soc_avs           217088  0
+nvidia_drm            139264  15
+rtw88_core            360448  2 rtw88_8821c,rtw88_usb
+snd_hda_codec_alc882    20480  1
+snd_hda_codec_realtek_lib    65536  1 snd_hda_codec_alc882
+snd_soc_hda_codec      24576  1 snd_soc_avs
+snd_hda_codec_nvhdmi    16384  1
+snd_hda_ext_core       32768  2 snd_soc_avs,snd_soc_hda_codec
+x86_pkg_temp_thermal    20480  0
+nvidia_modeset       1744896  18 nvidia_drm
+snd_hda_codec_generic   122880  2 snd_hda_codec_realtek_lib,snd_hda_codec_alc882
+snd_hda_codec_hdmi     65536  1 snd_hda_codec_nvhdmi
+intel_powerclamp       24576  0
+mac80211             1851392  2 rtw88_core,rtw88_usb
+btusb                  77824  0
+snd_hda_intel          61440  2
+snd_soc_core          417792  2 snd_soc_avs,snd_soc_hda_codec
+btrtl                  32768  1 btusb
+snd_hda_codec         204800  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_codec_nvhdmi,snd_hda_codec_realtek_lib,snd_hda_codec_alc882
+btintel                69632  1 btusb
+coretemp               24576  0
+snd_compress           36864  2 snd_soc_avs,snd_soc_core
+snd_hda_core          143360  8 snd_hda_codec_generic,snd_soc_avs,snd_hda_codec_hdmi,snd_soc_hda_codec,snd_hda_intel,snd_hda_ext_core,snd_hda_codec,snd_hda_codec_realtek_lib
+btbcm                  24576  1 btusb
+snd_usb_audio         573440  1
+ac97_bus               12288  1 snd_soc_core
+kvm_intel             569344  0
+btmtk                  36864  1 btusb
+snd_intel_dspcfg       45056  2 snd_soc_avs,snd_hda_intel
+cfg80211             1462272  2 rtw88_core,mac80211
+snd_usbmidi_lib        57344  1 snd_usb_audio
+snd_pcm_dmaengine      20480  1 snd_soc_core
+snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
+nvidia              14794752  241 nvidia_uvm,nvidia_modeset
+cmdlinepart            16384  0
+mei_hdcp               28672  0
+snd_hwdep              24576  2 snd_usb_audio,snd_hda_codec
+mei_pxp                16384  0
+snd_ump                45056  1 snd_usb_audio
+uvcvideo              143360  0
+spi_nor               167936  0
+ee1004                 16384  0
+bluetooth            1032192  34 btrtl,btmtk,btintel,btbcm,bnep,btusb,rfcomm
+kvm                  1445888  1 kvm_intel
+snd_seq_midi           24576  0
+mtd                    98304  3 spi_nor,cmdlinepart
+videobuf2_vmalloc      20480  1 uvcvideo
+snd_seq_midi_event     16384  1 snd_seq_midi
+uvc                    12288  1 uvcvideo
+libarc4                12288  1 mac80211
+videobuf2_memops       16384  1 videobuf2_vmalloc
+snd_rawmidi            57344  3 snd_seq_midi,snd_usbmidi_lib,snd_ump
+videobuf2_v4l2         36864  1 uvcvideo
+snd_seq               122880  9 snd_seq_midi,snd_seq_midi_event,snd_seq_dummy
+irqbypass              16384  1 kvm
+videobuf2_common       86016  4 videobuf2_vmalloc,videobuf2_v4l2,uvcvideo,videobuf2_memops
+polyval_clmulni        12288  0
+ghash_clmulni_intel    12288  0
+snd_pcm               200704  9 snd_soc_avs,snd_hda_codec_hdmi,snd_hda_intel,snd_usb_audio,snd_hda_codec,snd_compress,snd_soc_core,snd_hda_core,snd_pcm_dmaengine
+aesni_intel            98304  3
+snd_seq_device         16384  4 snd_seq,snd_seq_midi,snd_ump,snd_rawmidi
+videodev              364544  2 videobuf2_v4l2,uvcvideo
+rapl                   20480  0
+snd_timer              53248  3 snd_seq,snd_hrtimer,snd_pcm
+mc                     81920  5 videodev,snd_usb_audio,videobuf2_v4l2,uvcvideo,videobuf2_common
+intel_cstate           20480  0
+intel_wmi_thunderbolt    16384  0
+gigabyte_wmi           12288  0
+wmi_bmof               12288  0
+i2c_i801               36864  0
+mei_me                 53248  2
+snd                   143360  24 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_usb_audio,snd_usbmidi_lib,snd_hda_codec,snd_timer,snd_hda_codec_realtek_lib,snd_compress,snd_soc_core,snd_ump,snd_pcm,snd_rawmidi
+drm_ttm_helper         16384  1 nvidia_drm
+spi_intel_pci          12288  0
+i2c_smbus              20480  1 i2c_i801
+intel_pmc_core        135168  0
+ttm                   126976  1 drm_ttm_helper
+mei                   172032  5 mei_hdcp,mei_pxp,mei_me
+input_leds             12288  0
+spi_intel              36864  1 spi_intel_pci
+joydev                 32768  0
+soundcore              16384  1 snd
+pmt_telemetry          16384  1 intel_pmc_core
+i2c_mux                12288  1 i2c_i801
+pmt_discovery          20480  1 pmt_telemetry
+pmt_class              20480  2 pmt_telemetry,pmt_discovery
+intel_pmc_ssram_telemetry    16384  1 intel_pmc_core
+intel_vsec             24576  2 intel_pmc_ssram_telemetry,pmt_telemetry
+acpi_pad              184320  0
+acpi_tad               20480  0
+mac_hid                12288  0
+sch_fq_codel           24576  2
+msr                    12288  0
+parport_pc             53248  0
+ppdev                  24576  0
+lp                     32768  0
+parport                73728  3 parport_pc,lp,ppdev
+efi_pstore             12288  0
+nfnetlink              20480  2 nf_tables
+dmi_sysfs              20480  0
+ip_tables              32768  0
+x_tables               65536  1 ip_tables
+autofs4                57344  2
+hid_logitech_hidpp     65536  0
+hid_logitech_dj        36864  0
+hid_generic            12288  0
+usbhid                 77824  2 hid_logitech_dj,hid_logitech_hidpp
+hid                   262144  4 usbhid,hid_generic,hid_logitech_dj,hid_logitech_hidpp
+nvme                   61440  2
+nvme_core             233472  3 nvme
+e1000e                360448  0
+ahci                   49152  0
+nvme_keyring           20480  1 nvme_core
+libahci                53248  1 ahci
+nvme_auth              28672  1 nvme_core
+video                  77824  1 nvidia_modeset
+wmi                    28672  4 video,intel_wmi_thunderbolt,gigabyte_wmi,wmi_bmof
+pinctrl_tigerlake      28672  0
+
+=== DRIVERS DETECTADOS EN /sys/bus ===
+BUS          | DRIVER                         | MODULO ASOCIADO           | DISPOSITIVOS
+---------------------------------------------------------------------------------------------------------------
+acpi         | battery                        | builtin/no-visible        | (0) -
+acpi         | button                         | builtin/no-visible        | (2) LNXPWRBN:00 PNP0C0E:00
+acpi         | ec                             | builtin/no-visible        | (0) -
+acpi         | hardware_error_device          | builtin/no-visible        | (0) -
+acpi         | hpet                           | builtin/no-visible        | (0) -
+acpi         | thermal                        | builtin/no-visible        | (3) LNXTHERM:01 LNXTHERM:02 LNXTHERM:00
+acpi         | tpm_crb                        | builtin/no-visible        | (1) MSFT0101:00
+acpi         | video                          | video                     | (0) -
+auxiliary    | pmt_discovery                  | pmt_discovery             | (0) -
+auxiliary    | pmt_telemetry                  | pmt_telemetry             | (0) -
+cpu          | processor                      | builtin/no-visible        | (16) cpu11 cpu9 cpu7 cpu5 cpu3 cpu14 cpu1 cpu12 cpu10 cpu8 cpu6 cpu4 cpu15 cpu2 cpu13 cpu0
+faux         | faux_driver                    | builtin/no-visible        | (7) reg-dummy Fixed MDIO bus microcode regulatory snd-soc-dummy
+gpio         | gpio_stub_drv                  | builtin/no-visible        | (0) -
+hdaudio      | snd_hda_codec_alc882           | snd_hda_codec_alc882      | (1) hdaudioC0D0
+hdaudio      | snd_hda_codec_generic          | snd_hda_codec_generic     | (0) -
+hdaudio      | snd_hda_codec_hdmi             | snd_hda_codec_hdmi        | (0) -
+hdaudio      | snd_hda_codec_nvhdmi           | snd_hda_codec_nvhdmi      | (1) hdaudioC2D0
+hid          | hid-generic                    | hid_generic               | (2) 0003:258A:002A.0001 0003:258A:002A.0002
+hid          | logitech-djreceiver            | hid_logitech_dj           | (2) 0003:046D:C534.0004 0003:046D:C534.0003
+hid          | logitech-hidpp-device          | hid_logitech_hidpp        | (1) 0003:046D:4054.0005
+i2c          | 88PM860x                       | builtin/no-visible        | (0) -
+i2c          | aat2870                        | builtin/no-visible        | (0) -
+i2c          | adp5520                        | builtin/no-visible        | (0) -
+i2c          | as3711                         | builtin/no-visible        | (0) -
+i2c          | da903x                         | builtin/no-visible        | (0) -
+i2c          | da9052                         | builtin/no-visible        | (0) -
+i2c          | da9055-pmic                    | builtin/no-visible        | (0) -
+i2c          | da9063                         | builtin/no-visible        | (0) -
+i2c          | dummy                          | builtin/no-visible        | (2) 0-0037 0-0036
+i2c          | ee1004                         | ee1004                    | (1) 0-0050
+i2c          | elants_i2c                     | builtin/no-visible        | (0) -
+i2c          | intel_soc_pmic_chtwc           | builtin/no-visible        | (0) -
+i2c          | intel_soc_pmic_crc             | builtin/no-visible        | (0) -
+i2c          | lp8788                         | builtin/no-visible        | (0) -
+i2c          | max14577                       | builtin/no-visible        | (0) -
+i2c          | max310x                        | builtin/no-visible        | (0) -
+i2c          | max77693                       | builtin/no-visible        | (0) -
+i2c          | max77843                       | builtin/no-visible        | (0) -
+i2c          | max8925                        | builtin/no-visible        | (0) -
+i2c          | max8997                        | builtin/no-visible        | (0) -
+i2c          | max8998                        | builtin/no-visible        | (0) -
+i2c          | palmas                         | builtin/no-visible        | (0) -
+i2c          | rc5t583                        | builtin/no-visible        | (0) -
+i2c          | smbus_alert                    | i2c_smbus                 | (0) -
+i2c          | sx150x-pinctrl                 | builtin/no-visible        | (0) -
+i2c          | tps65090                       | builtin/no-visible        | (0) -
+i2c          | tps6586x                       | builtin/no-visible        | (0) -
+i2c          | tps65910                       | builtin/no-visible        | (0) -
+i2c          | tps65912                       | builtin/no-visible        | (0) -
+i2c          | twl                            | builtin/no-visible        | (0) -
+i2c          | twl6040                        | builtin/no-visible        | (0) -
+i2c          | wm831x                         | builtin/no-visible        | (0) -
+i2c          | wm8350                         | builtin/no-visible        | (0) -
+i2c          | WM8400                         | builtin/no-visible        | (0) -
+mdio_bus     | Broadcom BCM84881              | builtin/no-visible        | (0) -
+mdio_bus     | Generic Clause 45 PHY          | builtin/no-visible        | (0) -
+mdio_bus     | Generic PHY                    | builtin/no-visible        | (0) -
+mei          | mei_hdcp                       | mei_hdcp                  | (1) 0000:00:16.0-b638ab7e-94e2-4ea2-a552-d1c54b627f04
+mei          | mei_pxp                        | mei_pxp                   | (1) 0000:00:16.0-fbf6fcf1-96cf-4e2e-a6a6-1bab8cbe36b1
+nd           | nd_bus                         | libnvdimm                 | (0) -
+nd           | nd_region                      | libnvdimm                 | (0) -
+nd           | nvdimm                         | libnvdimm                 | (0) -
+parport      | lp                             | lp                        | (0) -
+parport      | ppdev                          | ppdev                     | (0) -
+pci          | 8250_mid                       | 8250_mid                  | (0) -
+pci          | agpgart-intel                  | intel_agp                 | (0) -
+pci          | agpgart-via                    | via_agp                   | (0) -
+pci          | ahci                           | ahci                      | (1) 0000:00:17.0
+pci          | asiliantfb                     | asiliantfb                | (0) -
+pci          | ata_generic                    | ata_generic               | (0) -
+pci          | ata_piix                       | ata_piix                  | (0) -
+pci          | e1000e                         | e1000e                    | (1) 0000:00:1f.6
+pci          | ehci-pci                       | ehci_pci                  | (0) -
+pci          | i801_smbus                     | i2c_i801                  | (1) 0000:00:1f.4
+pci          | imsttfb                        | imsttfb                   | (0) -
+pci          | intel_pmc_ssram_telemetry      | intel_pmc_ssram_telemetry | (0) -
+pci          | intel_scu                      | intel_scu_pcidrv          | (0) -
+pci          | intel-spi                      | spi_intel_pci             | (1) 0000:00:1f.5
+pci          | intel_vsec                     | intel_vsec                | (0) -
+pci          | iosf_mbi_pci                   | iosf_mbi                  | (0) -
+pci          | mei_me                         | mei_me                    | (1) 0000:00:16.0
+pci          | nvidia                         | nvidia                    | (1) 0000:01:00.0
+pci          | nvidia-nvswitch                | nvidia                    | (0) -
+pci          | nvme                           | nvme                      | (1) 0000:02:00.0
+pci          | octep_hp                       | octep_hp                  | (0) -
+pci          | ohci-pci                       | ohci_pci                  | (0) -
+pci          | parport_pc                     | parport_pc                | (0) -
+pci          | pata_sis                       | pata_sis                  | (0) -
+pci          | pcieport                       | pcieportdrv               | (2) 0000:00:1c.0 0000:00:01.0
+pci          | pwm-lpss                       | pwm_lpss_pci              | (0) -
+pci          | serial                         | 8250_pci                  | (0) -
+pci          | shpchp                         | shpchp                    | (0) -
+pci          | skl_uncore                     | intel_uncore              | (1) 0000:00:00.0
+pci          | snd_hda_intel                  | snd_hda_intel             | (2) 0000:00:1f.3 0000:01:00.1
+pci          | snd_soc_avs                    | snd_soc_avs               | (0) -
+pci          | uhci_hcd                       | uhci_hcd                  | (0) -
+pci          | virtio-pci                     | virtio_pci                | (0) -
+pci          | xen-platform-pci               | platform_pci              | (0) -
+pci          | xhci_hcd                       | xhci_pci                  | (1) 0000:00:14.0
+pci_express  | aer                            | builtin/no-visible        | (1) 0000:00:1c.0:pcie002
+pci_express  | dpc                            | builtin/no-visible        | (1) 0000:00:1c.0:pcie008
+pci_express  | pcie_bwctrl                    | builtin/no-visible        | (2) 0000:00:01.0:pcie010 0000:00:1c.0:pcie010
+pci_express  | pciehp                         | builtin/no-visible        | (0) -
+pci_express  | pcie_pme                       | builtin/no-visible        | (2) 0000:00:1c.0:pcie001 0000:00:01.0:pcie001
+platform     | ac                             | builtin/no-visible        | (0) -
+platform     | acpi-fan                       | builtin/no-visible        | (5) PNP0C0B:03 PNP0C0B:01 PNP0C0B:04 PNP0C0B:02 PNP0C0B:00
+platform     | acpi-ged                       | builtin/no-visible        | (0) -
+platform     | acpi-tad                       | acpi_tad                  | (1) ACPI000E:00
+platform     | acpi-wmi                       | wmi                       | (5) PNP0C14:00 PNP0C14:03 PNP0C14:01 PNP0C14:04 PNP0C14:02
+platform     | alarmtimer                     | builtin/no-visible        | (1) alarmtimer.0.auto
+platform     | amd_gpio                       | builtin/no-visible        | (0) -
+platform     | axp288_pmic_acpi               | builtin/no-visible        | (0) -
+platform     | basic-mmio-gpio                | builtin/no-visible        | (0) -
+platform     | bxt_whiskey_cove_pmic          | builtin/no-visible        | (0) -
+platform     | byt_crystal_cove_pmic          | builtin/no-visible        | (0) -
+platform     | byt_gpio                       | builtin/no-visible        | (0) -
+platform     | charger-manager                | builtin/no-visible        | (0) -
+platform     | cherryview-pinctrl             | builtin/no-visible        | (0) -
+platform     | cht_crystal_cove_pmic          | builtin/no-visible        | (0) -
+platform     | cht_dollar_cove_ti_pmic        | builtin/no-visible        | (0) -
+platform     | cht_whiskey_cove_pmic          | builtin/no-visible        | (0) -
+platform     | clk-fch                        | builtin/no-visible        | (0) -
+platform     | clk-lpss-atom                  | builtin/no-visible        | (0) -
+platform     | clk-pmc-atom                   | builtin/no-visible        | (0) -
+platform     | crystal_cove_gpio              | builtin/no-visible        | (0) -
+platform     | crystal_cove_pwm               | builtin/no-visible        | (0) -
+platform     | dwc2                           | builtin/no-visible        | (0) -
+platform     | dw-pcie                        | builtin/no-visible        | (0) -
+platform     | e820_pmem                      | builtin/no-visible        | (0) -
+platform     | ehci-platform                  | builtin/no-visible        | (0) -
+platform     | gated-fixed-clk                | builtin/no-visible        | (0) -
+platform     | gpio-clk                       | builtin/no-visible        | (0) -
+platform     | i2c_designware                 | builtin/no-visible        | (0) -
+platform     | intel_pmc_core                 | intel_pmc_core            | (1) INT33A1:00
+platform     | intel_rapl_msr                 | intel_rapl_msr            | (1) intel_rapl_msr.0
+platform     | kgdboc                         | builtin/no-visible        | (1) kgdboc
+platform     | lgm-dma                        | builtin/no-visible        | (0) -
+platform     | mt6323-pwrc                    | builtin/no-visible        | (0) -
+platform     | nv_platform                    | nvidia                    | (0) -
+platform     | ohci-platform                  | builtin/no-visible        | (0) -
+platform     | palmas-gpio                    | builtin/no-visible        | (0) -
+platform     | parport_pc                     | parport_pc                | (0) -
+platform     | poweroff-restart               | builtin/no-visible        | (0) -
+platform     | processor_aggregator           | acpi_pad                  | (1) ACPI000C:00
+platform     | pwm-lpss                       | builtin/no-visible        | (0) -
+platform     | rc5t583-gpio                   | builtin/no-visible        | (0) -
+platform     | rproc-virtio                   | builtin/no-visible        | (0) -
+platform     | rtc_cmos                       | builtin/no-visible        | (1) rtc_cmos
+platform     | serial8250                     | builtin/no-visible        | (1) serial8250
+platform     | simple-framebuffer             | builtin/no-visible        | (0) -
+platform     | simple-reset                   | builtin/no-visible        | (0) -
+platform     | soc-audio                      | snd_soc_core              | (0) -
+platform     | sram                           | builtin/no-visible        | (0) -
+platform     | tigerlake-pinctrl              | pinctrl_tigerlake         | (1) INT34C6:00
+platform     | tpm_tis                        | builtin/no-visible        | (0) -
+platform     | tps65086-restart               | builtin/no-visible        | (0) -
+platform     | tps6586x-gpio                  | builtin/no-visible        | (0) -
+platform     | tps65910-gpio                  | builtin/no-visible        | (0) -
+platform     | tps68470_pmic_opregion         | builtin/no-visible        | (0) -
+platform     | twl4030-audio                  | builtin/no-visible        | (0) -
+platform     | uart-sccnxp                    | builtin/no-visible        | (0) -
+platform     | virtio-mmio                    | builtin/no-visible        | (0) -
+pnp          | parport_pc                     | builtin/no-visible        | (0) -
+pnp          | rtc_cmos                       | builtin/no-visible        | (0) -
+pnp          | serial                         | builtin/no-visible        | (1) 00:01
+pnp          | system                         | builtin/no-visible        | (7) 00:07 00:05 00:03 00:06 00:04 00:02 00:00
+pnp          | tpm_tis                        | builtin/no-visible        | (0) -
+scsi         | sd                             | builtin/no-visible        | (1) 2:0:0:0
+scsi         | sr                             | builtin/no-visible        | (0) -
+serial-base  | ctrl                           | builtin/no-visible        | (2) 00:01:0 serial8250:0
+serial-base  | port                           | builtin/no-visible        | (32) serial8250:0.16 serial8250:0.3 serial8250:0.24 serial8250:0.14 serial8250:0.1 serial8250:0.22 00:01:0.0 serial8250:0.12 serial8250:0.30 serial8250:0.20 serial8250:0.8 serial8250:0.10 serial8250:0.29 serial8250:0.19 serial8250:0.6 serial8250:0.27 serial8250:0.17 serial8250:0.4 serial8250:0.25 serial8250:0.15 serial8250:0.2 serial8250:0.23 serial8250:0.13 serial8250:0.31 serial8250:0.21 serial8250:0.9 serial8250:0.11 serial8250:0.7 serial8250:0.28 serial8250:0.18 serial8250:0.5 serial8250:0.26
+serio        | atkbd                          | atkbd                     | (0) -
+snd_seq      | snd_seq_midi                   | snd_seq_midi              | (0) -
+spi          | da9052                         | builtin/no-visible        | (0) -
+spi          | ezx-pcap                       | builtin/no-visible        | (0) -
+spi          | max310x                        | builtin/no-visible        | (0) -
+spi          | spi-nor                        | spi_nor                   | (1) spi0.0
+spi          | tps65912                       | builtin/no-visible        | (0) -
+spi          | wm831x                         | builtin/no-visible        | (0) -
+usb          | btusb                          | btusb                     | (2) 1-5.4:1.0 1-5.4:1.1
+usb          | hub                            | usbcore                   | (3) 1-0:1.0 2-0:1.0 1-5:1.0
+usb          | rtw88_8821cu                   | rtw88_8821cu              | (1) 1-5.4:1.2
+usb          | snd-usb-audio                  | snd_usb_audio             | (2) 1-6:1.2 1-6:1.3
+usb          | usb                            | builtin/no-visible        | (7) usb1 1-5 1-3 1-5.4 1-1 usb2 1-6
+usb          | usbfs                          | usbcore                   | (0) -
+usb          | usbhid                         | usbhid                    | (4) 1-1:1.1 1-3:1.0 1-3:1.1 1-1:1.0
+usb          | uvcvideo                       | uvcvideo                  | (2) 1-6:1.0 1-6:1.1
+virtio       | virtio_balloon                 | builtin/no-visible        | (0) -
+virtio       | virtio_blk                     | builtin/no-visible        | (0) -
+virtio       | virtio_console                 | builtin/no-visible        | (0) -
+virtio       | virtio_iommu                   | builtin/no-visible        | (0) -
+virtio       | virtio_net                     | builtin/no-visible        | (0) -
+virtio       | virtio_rproc_serial            | builtin/no-visible        | (0) -
+virtio       | virtio_scsi                    | builtin/no-visible        | (0) -
+wmi          | gigabyte-wmi                   | gigabyte_wmi              | (1) DEADBEEF-2001-0000-00A0-C90629100000
+wmi          | intel-wmi-thunderbolt          | intel_wmi_thunderbolt     | (1) 86CCFD48-205E-4A77-9C48-2021CBEDE341
+wmi          | wmi-bmof                       | wmi_bmof                  | (4) 05901221-D566-11D1-B2F0-00A0C9062910 05901221-D566-11D1-B2F0-00A0C9062910-2 05901221-D566-11D1-B2F0-00A0C9062910-3 05901221-D566-11D1-B2F0-00A0C9062910-1
