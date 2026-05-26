@@ -103,6 +103,12 @@ Una segunda diferencia relevante reside en la confianza e integración con el ke
 
 **Consigna complementaria:** cargar un archivo `.txt` con la salida de cada integrante en el repositorio y agregar un `diff` en el informe.
 
+### 2.2 Archivos de relevamiento y comparación
+
+Para sistematizar esta parte del trabajo se utilizó la carpeta `documentation/txt_drivers_modules`, donde se concentraron tanto los reportes generados por cada integrante como los scripts auxiliares empleados para producirlos y compararlos. Los archivos `agustin.txt`, `javier.txt` y `tomas.txt` contienen el relevamiento realizado sobre cada computadora, incluyendo dos bloques principales: los módulos cargados en el kernel y los drivers detectados a partir de `sysfs`.
+
+La generación de estos reportes se automatizó mediante el script `drivers_modules`, cuyo propósito es inspeccionar la máquina local y exportar la información obtenida a un archivo de texto con formato uniforme. Sobre esa base, se desarrolló además el script `compare_drivers_modules`, que procesa todos los `.txt` presentes en la carpeta y produce por consola una comparación resumida entre ellos. El criterio adoptado no consiste en un `diff` textual bruto, sino en una comparación semántica: para módulos se considera únicamente el nombre del módulo cargado, mientras que para drivers se utiliza la combinación `bus/driver/módulo asociado`. De este modo, la salida permite distinguir con mayor claridad qué elementos son comunes entre los tres equipos y cuáles constituyen diferencias de hardware, controladores o configuración.
+
 ## 3. ¿Cuáles no están cargados pero están disponibles? ¿Qué pasa cuando el driver de un dispositivo no está disponible?
 
 Un módulo puede estar disponible sin encontrarse cargado cuando existe físicamente en el árbol `/lib/modules/$(uname -r)` pero no aparece en la lista de módulos activos obtenida con `lsmod` o consultando `/proc/modules`. En otras palabras, la disponibilidad se refiere a que el sistema posee el archivo del módulo y puede, en principio, cargarlo si una dependencia, un dispositivo o una acción administrativa lo requiere; la carga efectiva, en cambio, depende de que exista una necesidad concreta de activarlo.

@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    RED=$'\033[0;31m'
+    GREEN=$'\033[0;32m'
+    CYAN=$'\033[0;36m'
+    BOLD=$'\033[1m'
+    RESET=$'\033[0m'
+else
+    RED=""
+    GREEN=""
+    CYAN=""
+    BOLD=""
+    RESET=""
+fi
+
+trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+count_words() {
+    local value="$1"
+    awk '{ print NF }' <<< "$value"
+}
+
+join_presence() {
+    local presence="$1"
+    local file
+    local label
+    local joined=""
+
+    for file in $presence; do
+        label="${file%.txt}"
+        if [[ -z "$joined" ]]; then
+            joined="$label"
+        else
+            joined="$joined, $label"
+        fi
+    done
+
+    printf '%s' "$joined"
+}
+
+print_section_header() {
+    local title="$1"
+    printf "\n%s%s%s\n" "$BOLD" "$title" "$RESET"
+}
+
+mapfile -t report_files < <(find "$script_dir" -maxdepth 1 -type f -name '*.txt' ! -name 'README*.txt' -printf '%f\n' | sort)
+
+if [[ ${#report_files[@]} -lt 2 ]]; then
+    echo "Se necesitan al menos dos archivos .txt en $script_dir para realizar la comparacion."
+    exit 1
+fi
+
+declare -A host_by_file=()
+declare -A kernel_by_file=()
+declare -A module_presence=()
+declare -A driver_presence=()
+declare -A module_seen=()
+declare -A driver_seen=()
+
+total_reports=${#report_files[@]}
+
+for report in "${report_files[@]}"; do
+    full_path="${script_dir}/${report}"
+    host_by_file["$report"]="$(awk -F': ' '/^Equipo:/{print $2; exit}' "$full_path")"
+    kernel_by_file["$report"]="$(awk -F': ' '/^Kernel:/{print $2; exit}' "$full_path")"
+
+    section=""
+    while IFS= read -r line; do
+        case "$line" in
+            "=== MODULOS CARGADOS ===")
+                section="modules"
+                continue
+                ;;
+            "=== DRIVERS DETECTADOS EN /sys/bus ===")
+                section="drivers"
+                continue
+                ;;
+        esac
+
+        case "$section" in
+            modules)
+                [[ -z "$line" ]] && continue
+                [[ "$line" == Module* ]] && continue
+                [[ "$line" == "=== "* ]] && continue
+
+                module_name="${line%%[[:space:]]*}"
+                [[ -z "$module_name" ]] && continue
+
+                module_key="${report}::${module_name}"
+                if [[ -z "${module_seen[$module_key]+x}" ]]; then
+                    module_seen["$module_key"]=1
+                    module_presence["$module_name"]+="${report} "
+                fi
+                ;;
+            drivers)
+                [[ -z "$line" ]] && continue
+                [[ "$line" == BUS* ]] && continue
+                [[ "$line" == ---* ]] && continue
+                [[ "$line" != *"|"* ]] && continue
+
+                IFS='|' read -r raw_bus raw_driver raw_module _ <<< "$line"
+                bus="$(trim "$raw_bus")"
+                driver="$(trim "$raw_driver")"
+                module="$(trim "$raw_module")"
+                [[ -z "$bus" || -z "$driver" || -z "$module" ]] && continue
+
+                driver_id="${bus}/${driver}/${module}"
+                driver_key="${report}::${driver_id}"
+                if [[ -z "${driver_seen[$driver_key]+x}" ]]; then
+                    driver_seen["$driver_key"]=1
+                    driver_presence["$driver_id"]+="${report} "
+                fi
+                ;;
+        esac
+    done < "$full_path"
+done
+
+print_section_header "Comparacion de reportes de drivers y modulos"
+printf "%sSe analizaron %d archivos:%s\n" "$CYAN" "$total_reports" "$RESET"
+for report in "${report_files[@]}"; do
+    printf " - %s (equipo: %s, kernel: %s)\n" \
+        "$report" \
+        "${host_by_file[$report]:-desconocido}" \
+        "${kernel_by_file[$report]:-desconocido}"
+done
+
+print_section_header "Criterio utilizado"
+echo "Se comparan identificadores estables y no la linea textual completa."
+echo " - Modulos: se usa solo el nombre del modulo cargado."
+echo " - Drivers: se usa la combinacion bus/driver/modulo asociado."
+echo "Las coincidencias presentes en todos los reportes se muestran en verde."
+echo "Las entradas ausentes en al menos uno de los reportes se muestran en rojo."
+
+print_section_header "Modulos en comun"
+common_modules=0
+while IFS= read -r module_name; do
+    [[ -z "$module_name" ]] && continue
+    presence="${module_presence[$module_name]}"
+    count="$(count_words "$presence")"
+    if [[ "$count" -eq "$total_reports" ]]; then
+        printf "%s[COMUN]%s %s\n" "$GREEN" "$RESET" "$module_name"
+        common_modules=$((common_modules + 1))
+    fi
+done < <(printf '%s\n' "${!module_presence[@]}" | sort)
+
+if [[ "$common_modules" -eq 0 ]]; then
+    echo "No hay modulos presentes en todos los reportes."
+fi
+
+print_section_header "Modulos con diferencias"
+different_modules=0
+while IFS= read -r module_name; do
+    [[ -z "$module_name" ]] && continue
+    presence="${module_presence[$module_name]}"
+    count="$(count_words "$presence")"
+    if [[ "$count" -ne "$total_reports" ]]; then
+        printf "%s[DIFERENTE]%s %s -> aparece en: %s\n" \
+            "$RED" "$RESET" "$module_name" "$(join_presence "$presence")"
+        different_modules=$((different_modules + 1))
+    fi
+done < <(printf '%s\n' "${!module_presence[@]}" | sort)
+
+if [[ "$different_modules" -eq 0 ]]; then
+    echo "No hay diferencias entre los modulos relevados."
+fi
+
+print_section_header "Drivers en comun"
+common_drivers=0
+while IFS= read -r driver_id; do
+    [[ -z "$driver_id" ]] && continue
+    presence="${driver_presence[$driver_id]}"
+    count="$(count_words "$presence")"
+    if [[ "$count" -eq "$total_reports" ]]; then
+        printf "%s[COMUN]%s %s\n" "$GREEN" "$RESET" "$driver_id"
+        common_drivers=$((common_drivers + 1))
+    fi
+done < <(printf '%s\n' "${!driver_presence[@]}" | sort)
+
+if [[ "$common_drivers" -eq 0 ]]; then
+    echo "No hay drivers presentes en todos los reportes."
+fi
+
+print_section_header "Drivers con diferencias"
+different_drivers=0
+while IFS= read -r driver_id; do
+    [[ -z "$driver_id" ]] && continue
+    presence="${driver_presence[$driver_id]}"
+    count="$(count_words "$presence")"
+    if [[ "$count" -ne "$total_reports" ]]; then
+        printf "%s[DIFERENTE]%s %s -> aparece en: %s\n" \
+            "$RED" "$RESET" "$driver_id" "$(join_presence "$presence")"
+        different_drivers=$((different_drivers + 1))
+    fi
+done < <(printf '%s\n' "${!driver_presence[@]}" | sort)
+
+if [[ "$different_drivers" -eq 0 ]]; then
+    echo "No hay diferencias entre los drivers relevados."
+fi
+
+print_section_header "Resumen"
+printf " - Modulos comunes: %d\n" "$common_modules"
+printf " - Modulos diferentes: %d\n" "$different_modules"
+printf " - Drivers comunes: %d\n" "$common_drivers"
+printf " - Drivers diferentes: %d\n" "$different_drivers"
