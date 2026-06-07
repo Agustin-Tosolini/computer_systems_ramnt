@@ -62,6 +62,104 @@ Para cambiar el puerto local:
 WEB_PORT=8090 docker compose up --build
 ```
 
+## Bajar la web
+
+Si levanto el dashboard con el comando normal, bajelo desde esta carpeta con:
+
+```bash
+docker compose down
+```
+
+Para eliminar tambien contenedores huerfanos creados por cambios de configuracion:
+
+```bash
+docker compose down --remove-orphans
+```
+
+Si levanto una instancia alternativa con otro nombre de proyecto, por ejemplo:
+
+```bash
+WEB_PORT=8090 docker compose -p tp5-dashboard-8090 up --build
+```
+
+debe bajarla usando el mismo nombre de proyecto:
+
+```bash
+docker compose -p tp5-dashboard-8090 down --remove-orphans
+```
+
+Si Docker responde `permission denied` al detener el contenedor, reinicie el daemon y repita el `down`:
+
+```bash
+sudo systemctl restart docker
+docker compose down --remove-orphans
+```
+
+Si aun asi sigue bloqueado, use el metodo de recuperacion manual:
+
+```bash
+docker update --restart=no <contenedor>
+docker exec <contenedor> sh -c 'kill -TERM 1'
+docker rm <contenedor>
+```
+
+Si `docker exec` no alcanza, obtenga el PID real del proceso en el host y terminelo con `sudo`:
+
+```bash
+PID=$(docker inspect -f '{{.State.Pid}}' <contenedor>)
+sudo kill -9 "$PID"
+docker rm <contenedor>
+```
+
+En instalaciones de Docker por Snap, puede ser necesario reiniciar el servicio Snap en lugar del servicio systemd tradicional:
+
+```bash
+sudo snap restart docker
+```
+
+## Error al detener un contenedor anterior
+
+Si Docker muestra un error similar a:
+
+```text
+cannot stop container: <id>: permission denied
+```
+
+la imagen se construyo bien, pero el daemon de Docker no pudo detener un contenedor anterior. No es un error del codigo de la web.
+
+Primero intente limpiar desde esta carpeta:
+
+```bash
+docker compose down --remove-orphans
+docker compose up --build
+```
+
+Si el error continua, reinicie el servicio de Docker y vuelva a levantar:
+
+```bash
+sudo systemctl restart docker
+docker compose up --build
+```
+
+Si Docker fue instalado como Snap, use:
+
+```bash
+sudo snap restart docker
+docker compose up --build
+```
+
+Si no quiere reiniciar Docker en ese momento, puede levantar otra instancia temporal con otro nombre de proyecto y otro puerto:
+
+```bash
+WEB_PORT=8090 docker compose -p tp5-dashboard-8090 up --build
+```
+
+En ese caso abra:
+
+```text
+http://localhost:8090
+```
+
 ## Comando remoto esperado
 
 `REMOTE_COMMAND` debe imprimir JSON Lines por `stdout`. Ejemplo:
