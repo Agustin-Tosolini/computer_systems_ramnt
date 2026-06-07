@@ -25,7 +25,7 @@ SSH_PORT=22
 SSH_USER=pi
 SSH_PRIVATE_KEY=/ssh/id_ed25519
 SSH_PASSPHRASE=
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --pin-a 17 --pin-b 27 --interval-ms 100
+REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
 ```
 
 El contenedor monta por defecto `${HOME}/.ssh` como `/ssh` en modo solo lectura. Por eso `SSH_PRIVATE_KEY` debe apuntar a una ruta dentro de `/ssh`.
@@ -165,15 +165,24 @@ http://localhost:8090
 `REMOTE_COMMAND` debe imprimir JSON Lines por `stdout`. Ejemplo:
 
 ```json
-{"timestamp_ms":1710000000000,"seq":1,"source":"device","value_a":123,"value_b":456,"pin_a":17,"pin_b":27}
+{"timestamp_ms":1710000000000,"seq":1,"source":"device","value_a":0,"value_b":1,"gpio_a_value":0,"gpio_b_value":1,"binary_code":"01","binary_value":1,"normalized_value":0.333333,"pin_a":17,"pin_b":27}
 ```
 
-La web grafica `value_a` y `value_b`. Tambien acepta algunos alias (`channel_a`, `gpio_a`, `signal_a`, `value0`, etc.), pero el formato recomendado es el del lector C.
+La web grafica `normalized_value` con eje fijo entre `0` y `1`, y muestra el codigo binario `00`, `01`, `10` o `11`. El grafico conserva solamente las ultimas 10 muestras. Si una linea no contiene un codigo valido, el backend la descarta y no agrega ningun punto.
+
+El lector C esta preparado para leer el formato del driver:
+
+```text
+gpio_a=17 value=0
+gpio_b=27 value=1
+```
+
+Cada ciclo abre `/dev/tp5_gpio`, lee, cierra y espera 500 ms antes de repetir.
 
 ## Ejemplo con char device
 
 ```bash
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --pin-a 17 --pin-b 27 --interval-ms 100
+REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
 ```
 
 ## Ejemplo con /dev/mem
@@ -181,7 +190,7 @@ REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --pin-a 17 
 Si se usa `/dev/mem`, normalmente se requiere `sudo`:
 
 ```bash
-REMOTE_COMMAND=sudo /home/pi/tp5/gpio_jsonl_reader --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 100
+REMOTE_COMMAND=sudo /home/pi/tp5/gpio_jsonl_reader --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500
 ```
 
 Para evitar pedir password dentro del contenedor, configure una regla `sudoers` especifica para ese binario o, preferentemente, ajuste el driver para exponer un dispositivo con permisos de grupo.

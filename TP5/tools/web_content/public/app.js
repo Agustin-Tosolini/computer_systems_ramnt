@@ -1,6 +1,6 @@
 "use strict";
 
-const maxPoints = 200;
+const maxPoints = 10;
 const statusBadge = document.getElementById("statusBadge");
 const statusText = document.getElementById("statusText");
 const commandText = document.getElementById("commandText");
@@ -20,22 +20,15 @@ const chart = new Chart(canvas, {
     labels: [],
     datasets: [
       {
-        label: "value_a",
+        label: "codigo GPIO",
         data: [],
         borderColor: "#2563eb",
         backgroundColor: "rgba(37, 99, 235, 0.12)",
         borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.2
-      },
-      {
-        label: "value_b",
-        data: [],
-        borderColor: "#16a34a",
-        backgroundColor: "rgba(22, 163, 74, 0.12)",
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.2
+        pointRadius: 4,
+        pointHoverRadius: 5,
+        stepped: true,
+        tension: 0
       }
     ]
   },
@@ -53,6 +46,14 @@ const chart = new Chart(canvas, {
           usePointStyle: true,
           boxWidth: 8
         }
+      },
+      tooltip: {
+        callbacks: {
+          label(context) {
+            const raw = context.raw || {};
+            return `codigo ${raw.code || codeFromLevel(context.parsed.y)}`;
+          }
+        }
       }
     },
     scales: {
@@ -66,6 +67,14 @@ const chart = new Chart(canvas, {
         }
       },
       y: {
+        min: 0,
+        max: 1,
+        ticks: {
+          stepSize: 1 / 3,
+          callback(value) {
+            return codeFromLevel(Number(value));
+          }
+        },
         grid: {
           color: "rgba(148, 163, 184, 0.2)"
         }
@@ -77,7 +86,11 @@ const chart = new Chart(canvas, {
 clearButton.addEventListener("click", () => {
   chart.data.labels = [];
   chart.data.datasets[0].data = [];
-  chart.data.datasets[1].data = [];
+  totalSamples = 0;
+  sampleCount.textContent = "0";
+  valueA.textContent = "--";
+  valueB.textContent = "--";
+  sourceText.textContent = "Sin datos";
   chart.update();
 });
 
@@ -141,46 +154,65 @@ function updateStatus(status) {
 }
 
 function addSample(sample, updateChart) {
-  const a = pickNumber(sample, ["value_a", "channel_a", "gpio_a", "signal_a", "a", "value0", "channel_0"]);
-  const b = pickNumber(sample, ["value_b", "channel_b", "gpio_b", "signal_b", "b", "value1", "channel_1"]);
+  const a = pickBit(sample, ["gpio_a_value", "value_a", "channel_a", "signal_a", "a", "value0", "channel_0"]);
+  const b = pickBit(sample, ["gpio_b_value", "value_b", "channel_b", "signal_b", "b", "value1", "channel_1"]);
 
   if (a === null || b === null) {
-    appendLog(`Muestra sin value_a/value_b: ${JSON.stringify(sample).slice(0, 120)}`);
+    appendLog(`Muestra sin codigo binario valido: ${JSON.stringify(sample).slice(0, 120)}`);
     return;
   }
 
   totalSamples += 1;
   const timestamp = sample.timestamp_ms || sample.received_at_ms || Date.now();
   const label = new Date(timestamp).toLocaleTimeString();
+  const binaryValue = Number.isFinite(sample.binary_value) ? sample.binary_value : (a << 1) | b;
+  const normalizedValue = Number.isFinite(sample.normalized_value) ? sample.normalized_value : binaryValue / 3;
+  const binaryCode = typeof sample.binary_code === "string" ? sample.binary_code : `${a}${b}`;
 
   chart.data.labels.push(label);
-  chart.data.datasets[0].data.push(a);
-  chart.data.datasets[1].data.push(b);
+  chart.data.datasets[0].data.push({
+    x: label,
+    y: normalizedValue,
+    code: binaryCode
+  });
 
   while (chart.data.labels.length > maxPoints) {
     chart.data.labels.shift();
     chart.data.datasets[0].data.shift();
-    chart.data.datasets[1].data.shift();
   }
 
   valueA.textContent = String(a);
   valueB.textContent = String(b);
   sampleCount.textContent = String(totalSamples);
-  sourceText.textContent = sample.source ? `${sample.source} #${sample.seq || totalSamples}` : `#${sample.seq || totalSamples}`;
+  sourceText.textContent = `${binaryCode} (${binaryValue})`;
 
   if (updateChart) {
     chart.update();
   }
 }
 
-function pickNumber(sample, names) {
+function pickBit(sample, names) {
   for (const name of names) {
     const value = sample[name];
     if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
+      return value === 0 ? 0 : 1;
     }
   }
   return null;
+}
+
+function codeFromLevel(value) {
+  const code = Math.round(value * 3);
+  if (code <= 0) {
+    return "00";
+  }
+  if (code === 1) {
+    return "01";
+  }
+  if (code === 2) {
+    return "10";
+  }
+  return "11";
 }
 
 function appendLog(line) {

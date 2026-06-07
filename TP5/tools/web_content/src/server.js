@@ -21,7 +21,7 @@ const config = {
   sshPassphrase: process.env.SSH_PASSPHRASE || "",
   sshPassword: process.env.SSH_PASSWORD || "",
   remoteCommand: process.env.REMOTE_COMMAND || "",
-  maxSamples: numberFromEnv("MAX_SAMPLES", 500),
+  maxSamples: numberFromEnv("MAX_SAMPLES", 10),
   reconnectMs: numberFromEnv("RECONNECT_MS", 3000),
   readyTimeout: numberFromEnv("SSH_READY_TIMEOUT_MS", 15000)
 };
@@ -228,6 +228,13 @@ function handleJsonLine(line) {
     return;
   }
 
+  const normalized = normalizeSample(sample);
+  if (normalized === null) {
+    setStatus("parse-warning", `Muestra sin codigo binario valido: ${trimmed.slice(0, 120)}`, true);
+    return;
+  }
+
+  sample = { ...sample, ...normalized };
   sample.received_at_ms = Date.now();
   samples.push(sample);
   while (samples.length > config.maxSamples) {
@@ -254,4 +261,33 @@ function broadcast(event) {
       client.send(payload);
     }
   }
+}
+
+function normalizeSample(sample) {
+  const gpioA = pickBit(sample, ["gpio_a_value", "value_a", "a", "channel_a", "signal_a"]);
+  const gpioB = pickBit(sample, ["gpio_b_value", "value_b", "b", "channel_b", "signal_b"]);
+
+  if (gpioA === null || gpioB === null) {
+    return null;
+  }
+
+  const binaryValue = (gpioA << 1) | gpioB;
+  return {
+    gpio_a_value: gpioA,
+    gpio_b_value: gpioB,
+    binary_code: `${gpioA}${gpioB}`,
+    binary_value: binaryValue,
+    normalized_value: binaryValue / 3
+  };
+}
+
+function pickBit(sample, names) {
+  for (const name of names) {
+    const value = sample[name];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value === 0 ? 0 : 1;
+    }
+  }
+
+  return null;
 }
