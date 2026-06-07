@@ -135,7 +135,7 @@ static void print_usage(const char *program) {
             "  --width BITS               Register width: 8, 16 or 32. Default: 32.\n"
             "\n"
             "Runtime options:\n"
-            "  --interval-ms MS           Delay between memory reads or sysfs EOF polls. Default: 100.\n"
+            "  --interval-ms MS           Delay between samples. Default: 500.\n"
             "  --max-samples N            Stop after N samples. Default: 0 (infinite).\n"
             "  --pin-a N                  GPIO label for value_a. Default: null.\n"
             "  --pin-b N                  GPIO label for value_b. Default: null.\n"
@@ -153,17 +153,33 @@ static void print_json_sample(uint64_t seq,
                               int64_t value_b,
                               int pin_a,
                               int pin_b) {
+    const int gpio_a_value = value_a != 0 ? 1 : 0;
+    const int gpio_b_value = value_b != 0 ? 1 : 0;
+    const int binary_value = (gpio_a_value << 1) | gpio_b_value;
+    const double normalized_value = (double)binary_value / 3.0;
+
     printf("{\"timestamp_ms\":%" PRIu64
            ",\"seq\":%" PRIu64
            ",\"source\":\"%s\""
            ",\"value_a\":%" PRId64
            ",\"value_b\":%" PRId64
+           ",\"gpio_a_value\":%d"
+           ",\"gpio_b_value\":%d"
+           ",\"binary_code\":\"%d%d\""
+           ",\"binary_value\":%d"
+           ",\"normalized_value\":%.6f"
            ",\"pin_a\":",
            timestamp_ms,
            seq,
            source,
            value_a,
-           value_b);
+           value_b,
+           gpio_a_value,
+           gpio_b_value,
+           gpio_a_value,
+           gpio_b_value,
+           binary_value,
+           normalized_value);
 
     if (pin_a >= 0) {
         printf("%d", pin_a);
@@ -216,6 +232,130 @@ static bool parse_two_text_values(const char *line, int64_t *value_a, int64_t *v
     *value_a = values[0];
     *value_b = values[1];
     return true;
+}
+
+static bool parse_value_after_key(const char *text, const char *key, int *out) {
+    const char *position = strstr(text, key);
+    if (position == NULL) {
+        return false;
+    }
+
+    position += strlen(key);
+
+    char *end = NULL;
+    errno = 0;
+    long value = strtol(position, &end, 0);
+    if (errno != 0 || end == position || value < INT32_MIN || value > INT32_MAX) {
+        return false;
+    }
+
+    *out = (int)value;
+    return true;
+}
+
+static bool parse_gpio_snapshot(const char *content,
+                                int *value_a,
+                                int *value_b,
+                                int *detected_pin_a,
+                                int *detected_pin_b) {
+    bool found_a = false;
+    bool found_b = false;
+    bool saw_gpio_label = false;
+    const char *line_start = content;
+
+    while (*line_start != '\0') {
+        const char *line_end = strchr(line_start, '\n');
+        size_t length = line_end == NULL ? strlen(line_start) : (size_t)(line_end - line_start);
+
+        char line[256];
+        if (length >= sizeof(line)) {
+            length = sizeof(line) - 1U;
+        }
+        memcpy(line, line_start, length);
+        line[length] = '\0';
+
+        if (strstr(line, "gpio_a") != NULL) {
+            int parsed_value = 0;
+            int parsed_pin = -1;
+            saw_gpio_label = true;
+
+            if (parse_value_after_key(line, "value=", &parsed_value)) {
+                *value_a = parsed_value != 0 ? 1 : 0;
+                found_a = true;
+            }
+            if (parse_value_after_key(line, "gpio_a=", &parsed_pin)) {
+                *detected_pin_a = parsed_pin;
+            }
+        }
+
+        if (strstr(line, "gpio_b") != NULL) {
+            int parsed_value = 0;
+            int parsed_pin = -1;
+            saw_gpio_label = true;
+
+            if (parse_value_after_key(line, "value=", &parsed_value)) {
+                *value_b = parsed_value != 0 ? 1 : 0;
+                found_b = true;
+            }
+            if (parse_value_after_key(line, "gpio_b=", &parsed_pin)) {
+                *detected_pin_b = parsed_pin;
+            }
+        }
+
+        if (line_end == NULL) {
+            break;
+        }
+        line_start = line_end + 1;
+    }
+
+    if (found_a && found_b) {
+        return true;
+    }
+
+    if (!saw_gpio_label) {
+        int64_t fallback_a = 0;
+        int64_t fallback_b = 0;
+        if (parse_two_text_values(content, &fallback_a, &fallback_b)) {
+            *value_a = fallback_a != 0 ? 1 : 0;
+            *value_b = fallback_b != 0 ? 1 : 0;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int read_device_text_snapshot(const char *path, char *buffer, size_t buffer_size) {
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        return -1;
+    }
+
+    size_t used = 0;
+    while (used + 1U < buffer_size) {
+        ssize_t count = read(fd, buffer + used, buffer_size - used - 1U);
+        if (count > 0) {
+            used += (size_t)count;
+            continue;
+        }
+
+        if (count == 0) {
+            break;
+        }
+
+        if (errno == EINTR) {
+            continue;
+        }
+
+        int saved_errno = errno;
+        close(fd);
+        errno = saved_errno;
+        return -1;
+    }
+
+    buffer[used] = '\0';
+    close(fd);
+    return used > 0 ? 1 : 0;
 }
 
 static int read_exact(int fd, void *buffer, size_t length) {
@@ -281,52 +421,43 @@ static int run_device_binary_u32(const config_t *config) {
 }
 
 static int run_device_text(const config_t *config) {
-    FILE *stream = fopen(config->device_path, "r");
-    if (stream == NULL) {
-        fprintf(stderr, "error: cannot open %s: %s\n", config->device_path, strerror(errno));
-        return 1;
-    }
-
-    char *line = NULL;
-    size_t capacity = 0;
     uint64_t seq = 0;
 
     while (keep_running && (config->max_samples == 0 || seq < config->max_samples)) {
-        errno = 0;
-        ssize_t length = getline(&line, &capacity, stream);
-        if (length < 0) {
-            if (errno != 0) {
-                fprintf(stderr, "error: cannot read %s: %s\n", config->device_path, strerror(errno));
-                free(line);
-                fclose(stream);
-                return 1;
-            }
+        char buffer[1024];
+        int read_status = read_device_text_snapshot(config->device_path, buffer, sizeof(buffer));
+        if (read_status < 0) {
+            fprintf(stderr, "error: cannot read %s: %s\n", config->device_path, strerror(errno));
+            return 1;
+        }
 
-            clearerr(stream);
-            (void)fseeko(stream, 0, SEEK_SET);
+        if (read_status == 0) {
             sleep_ms(config->interval_ms);
             continue;
         }
 
-        (void)length;
-        int64_t value_a = 0;
-        int64_t value_b = 0;
-        if (!parse_two_text_values(line, &value_a, &value_b)) {
-            fprintf(stderr, "warning: skipped non-sample line: %s", line);
+        int value_a = 0;
+        int value_b = 0;
+        int detected_pin_a = -1;
+        int detected_pin_b = -1;
+
+        if (!parse_gpio_snapshot(buffer, &value_a, &value_b, &detected_pin_a, &detected_pin_b)) {
+            fprintf(stderr, "warning: skipped invalid snapshot from %s: %s\n", config->device_path, buffer);
+            sleep_ms(config->interval_ms);
             continue;
         }
 
         print_json_sample(++seq,
                           now_ms(),
                           "device",
-                          value_a,
-                          value_b,
-                          config->pin_a,
-                          config->pin_b);
+                          (int64_t)value_a,
+                          (int64_t)value_b,
+                          config->pin_a >= 0 ? config->pin_a : detected_pin_a,
+                          config->pin_b >= 0 ? config->pin_b : detected_pin_b);
+
+        sleep_ms(config->interval_ms);
     }
 
-    free(line);
-    fclose(stream);
     return 0;
 }
 
@@ -538,7 +669,7 @@ int main(int argc, char **argv) {
         .offset_a = 0,
         .offset_b = 4,
         .width_bits = 32,
-        .interval_ms = 100,
+        .interval_ms = 500,
         .max_samples = 0,
         .pin_a = -1,
         .pin_b = -1,
