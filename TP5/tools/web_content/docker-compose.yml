@@ -1,0 +1,21 @@
+services:
+  tp5-dashboard:
+    build: .
+    container_name: tp5-gpio-dashboard
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    environment:
+      PORT: "8080"
+      SSH_HOST: ${SSH_HOST:-raspberrypi.local}
+      SSH_PORT: ${SSH_PORT:-22}
+      SSH_USER: ${SSH_USER:-pi}
+      SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:-/ssh/id_ed25519}
+      SSH_PASSPHRASE: ${SSH_PASSPHRASE:-}
+      SSH_PASSWORD: ${SSH_PASSWORD:-}
+      REMOTE_COMMAND: ${REMOTE_COMMAND:-/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --pin-a 17 --pin-b 27 --interval-ms 100}
+      MAX_SAMPLES: ${MAX_SAMPLES:-500}
+      RECONNECT_MS: ${RECONNECT_MS:-3000}
+      SSH_READY_TIMEOUT_MS: ${SSH_READY_TIMEOUT_MS:-15000}
+    volumes:
+      - ${SSH_KEY_DIR:-${HOME}/.ssh}:/ssh:ro
+    restart: unless-stopped
