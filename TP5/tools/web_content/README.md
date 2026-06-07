@@ -1,11 +1,13 @@
 # Web Content
 
-Dashboard local dockerizado para conectarse por SSH a la Raspberry Pi, ejecutar el lector C remoto y graficar las muestras recibidas como JSON Lines.
+Dashboard local dockerizado para graficar muestras JSON Lines generadas por `gpio_jsonl_reader`.
+
+El modo principal es manual: usted ejecuta el lector remoto por SSH y redirige cada linea JSON al endpoint HTTP del dashboard. El modo automatico por SSH sigue disponible, pero es opcional.
 
 ## Requisitos
 
 - Docker con Compose.
-- Acceso SSH desde la notebook hacia la Raspberry Pi.
+- Acceso SSH desde la notebook hacia la Raspberry Pi para ejecutar el lector manualmente.
 - El binario `gpio_jsonl_reader` copiado y ejecutable en la Raspberry Pi.
 - El modulo de kernel cargado y exponiendo los valores por dispositivo o por una direccion fisica valida.
 
@@ -20,29 +22,12 @@ cp .env.example .env
 Edite `.env`:
 
 ```bash
-SSH_HOST=raspberrypi.local
-SSH_PORT=22
-SSH_USER=pi
-SSH_PRIVATE_KEY=/ssh/id_ed25519
-SSH_PASSPHRASE=
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
+WEB_PORT=8080
+MAX_SAMPLES=10
+REMOTE_COMMAND=
 ```
 
-El contenedor monta por defecto `${HOME}/.ssh` como `/ssh` en modo solo lectura. Por eso `SSH_PRIVATE_KEY` debe apuntar a una ruta dentro de `/ssh`.
-
-Si las claves estan en otra carpeta:
-
-```bash
-SSH_KEY_DIR=/ruta/a/claves docker compose up --build
-```
-
-Tambien puede usar `SSH_PASSWORD`, aunque para el trabajo grupal es mas simple y repetible usar clave SSH:
-
-```bash
-ssh-copy-id <usuario>@<raspberry-host>
-```
-
-Si la clave privada esta cifrada, complete `SSH_PASSPHRASE` en `.env` o use una clave de despliegue especifica para el TP.
+Con `REMOTE_COMMAND=` vacio, el contenedor no intenta conectarse por SSH ni ejecutar comandos remotos.
 
 ## Levantar la web
 
@@ -55,6 +40,42 @@ Abra:
 ```text
 http://localhost:8080
 ```
+
+## Enviar muestras manualmente
+
+Con la web levantada, ejecute el lector por SSH desde la notebook y envie cada linea al dashboard:
+
+```bash
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500' \
+  | while IFS= read -r line; do
+      printf '%s\n' "$line" \
+        | curl -fsS -X POST -H 'Content-Type: text/plain' --data-binary @- http://localhost:8080/api/samples >/dev/null
+    done
+```
+
+`-o PubkeyAuthentication=no` fuerza autenticacion por password. Es util si la notebook tiene una clave SSH bloqueada y el agente muestra errores como `agent refused operation`.
+
+Para probar solo algunas muestras:
+
+```bash
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500 --max-samples 10' \
+  | while IFS= read -r line; do
+      printf '%s\n' "$line" \
+        | curl -fsS -X POST -H 'Content-Type: text/plain' --data-binary @- http://localhost:8080/api/samples >/dev/null
+    done
+```
+
+Si `/dev/tp5_gpio` requiere permisos de administrador en la Raspberry Pi:
+
+```bash
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'sudo /home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500' \
+  | while IFS= read -r line; do
+      printf '%s\n' "$line" \
+        | curl -fsS -X POST -H 'Content-Type: text/plain' --data-binary @- http://localhost:8080/api/samples >/dev/null
+    done
+```
+
+Para cortar la lectura, use `Ctrl+C` en la terminal donde esta corriendo el pipeline.
 
 Para cambiar el puerto local:
 
@@ -160,9 +181,9 @@ En ese caso abra:
 http://localhost:8090
 ```
 
-## Comando remoto esperado
+## Formato recibido
 
-`REMOTE_COMMAND` debe imprimir JSON Lines por `stdout`. Ejemplo:
+El endpoint `/api/samples` recibe JSON Lines. Ejemplo:
 
 ```json
 {"timestamp_ms":1710000000000,"seq":1,"source":"device","value_a":0,"value_b":1,"gpio_a_value":0,"gpio_b_value":1,"binary_code":"01","binary_value":1,"normalized_value":0.333333,"pin_a":17,"pin_b":27}
@@ -179,21 +200,35 @@ gpio_b=27 value=1
 
 Cada ciclo abre `/dev/tp5_gpio`, lee, cierra y espera 500 ms antes de repetir.
 
-## Ejemplo con char device
+## Modo automatico opcional por SSH
+
+Si prefiere que el contenedor ejecute el lector remoto automaticamente, complete `REMOTE_COMMAND` y credenciales SSH en `.env`.
+
+Con password:
 
 ```bash
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
+SSH_HOST=ramnt.local
+SSH_PORT=22
+SSH_USER=ramnt
+SSH_PRIVATE_KEY=
+SSH_PASSPHRASE=
+SSH_PASSWORD=<password>
+REMOTE_COMMAND=/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500
 ```
 
-## Ejemplo con /dev/mem
-
-Si se usa `/dev/mem`, normalmente se requiere `sudo`:
+Con clave privada:
 
 ```bash
-REMOTE_COMMAND=sudo /home/pi/tp5/gpio_jsonl_reader --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500
+SSH_HOST=ramnt.local
+SSH_PORT=22
+SSH_USER=ramnt
+SSH_PRIVATE_KEY=/ssh/id_ed25519
+SSH_PASSPHRASE=<passphrase-si-corresponde>
+SSH_PASSWORD=
+REMOTE_COMMAND=/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500
 ```
 
-Para evitar pedir password dentro del contenedor, configure una regla `sudoers` especifica para ese binario o, preferentemente, ajuste el driver para exponer un dispositivo con permisos de grupo.
+El contenedor monta por defecto `${HOME}/.ssh` como `/ssh` en modo solo lectura. Por eso `SSH_PRIVATE_KEY` debe apuntar a una ruta dentro de `/ssh`.
 
 ## Variables de entorno
 
@@ -204,7 +239,7 @@ Para evitar pedir password dentro del contenedor, configure una regla `sudoers` 
 - `SSH_PRIVATE_KEY`: clave privada dentro del contenedor, por ejemplo `/ssh/id_ed25519`.
 - `SSH_PASSPHRASE`: passphrase opcional para una clave privada cifrada.
 - `SSH_PASSWORD`: password SSH opcional.
-- `REMOTE_COMMAND`: comando que se ejecuta en la Raspberry Pi.
+- `REMOTE_COMMAND`: opcional. Si queda vacio, la web usa modo manual y espera `POST /api/samples`.
 - `MAX_SAMPLES`: muestras retenidas por el backend.
 - `RECONNECT_MS`: espera entre reconexiones SSH.
 - `SSH_READY_TIMEOUT_MS`: timeout inicial de SSH.

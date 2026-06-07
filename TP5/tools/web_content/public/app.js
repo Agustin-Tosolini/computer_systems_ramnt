@@ -148,6 +148,8 @@ function updateStatus(status) {
 
   if (status.remoteCommand) {
     commandText.textContent = `${status.sshUser}@${status.sshHost}: ${status.remoteCommand}`;
+  } else if (status.status === "manual" || status.status === "receiving") {
+    commandText.textContent = "POST /api/samples";
   }
 
   appendLog(`[${new Date().toLocaleTimeString()}] ${status.status}: ${status.message}`);
