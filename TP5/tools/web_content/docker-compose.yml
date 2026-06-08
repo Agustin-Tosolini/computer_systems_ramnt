@@ -8,7 +8,7 @@ services:
       SSH_HOST: ${SSH_HOST:-raspberrypi.local}
       SSH_PORT: ${SSH_PORT:-22}
       SSH_USER: ${SSH_USER:-pi}
-      SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:-/ssh/id_ed25519}
+      SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:-/.ssh/id_ed25519}
       SSH_PASSPHRASE: ${SSH_PASSPHRASE:-}
       SSH_PASSWORD: ${SSH_PASSWORD:-}
       REMOTE_COMMAND: ${REMOTE_COMMAND:-/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500}
