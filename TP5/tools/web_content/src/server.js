@@ -42,6 +42,7 @@ let reconnectTimer = null;
 let sshClient = null;
 let reconnectRequested = false;
 
+app.use(express.text({ type: "*/*", limit: "128kb" }));
 app.use("/vendor/chart.js", express.static(path.join(__dirname, "..", "node_modules", "chart.js", "dist")));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -51,6 +52,31 @@ app.get("/api/status", (_req, res) => {
     sampleCount: samples.length,
     maxSamples: config.maxSamples
   });
+});
+
+app.post("/api/samples", (req, res) => {
+  const body = typeof req.body === "string" ? req.body : "";
+  const lines = body.split(/\r?\n/);
+  let accepted = 0;
+  let rejected = 0;
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      continue;
+    }
+
+    if (handleJsonLine(line)) {
+      accepted += 1;
+    } else {
+      rejected += 1;
+    }
+  }
+
+  if (accepted > 0 && state.status !== "receiving") {
+    setStatus("receiving", "Recibiendo muestras por POST /api/samples", true);
+  }
+
+  res.json({ accepted, rejected });
 });
 
 wss.on("connection", (socket) => {
@@ -88,8 +114,13 @@ function shutdown() {
 }
 
 function startSshLoop() {
-  if (!config.sshHost || !config.sshUser || !config.remoteCommand) {
-    setStatus("disabled", "Faltan SSH_HOST, SSH_USER o REMOTE_COMMAND en el entorno", false);
+  if (!config.remoteCommand) {
+    setStatus("manual", "Modo manual: envie JSON Lines a POST /api/samples", false);
+    return;
+  }
+
+  if (!config.sshHost || !config.sshUser) {
+    setStatus("disabled", "Faltan SSH_HOST o SSH_USER para ejecutar el comando remoto", false);
     return;
   }
 
@@ -117,7 +148,7 @@ function connectSsh() {
       setStatus("connected", "SSH conectado, ejecutando comando remoto", true);
       client.exec(config.remoteCommand, { pty: false }, (err, stream) => {
         if (err) {
-          setStatus("error", `No se pudo ejecutar REMOTE_COMMAND: ${err.message}`, false);
+          setStatus("error", `No se pudo ejecutar el comando remoto: ${err.message}`, false);
           client.end();
           scheduleReconnect();
           return;
@@ -212,7 +243,7 @@ function consumeJsonLines(stream) {
 function handleJsonLine(line) {
   const trimmed = line.trim();
   if (!trimmed) {
-    return;
+    return false;
   }
 
   let sample = null;
@@ -220,18 +251,18 @@ function handleJsonLine(line) {
     sample = JSON.parse(trimmed);
   } catch (err) {
     setStatus("parse-warning", `Linea JSON invalida: ${trimmed.slice(0, 120)}`, true);
-    return;
+    return false;
   }
 
   if (!sample || typeof sample !== "object" || Array.isArray(sample)) {
     setStatus("parse-warning", "La linea JSON no contiene un objeto", true);
-    return;
+    return false;
   }
 
   const normalized = normalizeSample(sample);
   if (normalized === null) {
     setStatus("parse-warning", `Muestra sin codigo binario valido: ${trimmed.slice(0, 120)}`, true);
-    return;
+    return false;
   }
 
   sample = { ...sample, ...normalized };
@@ -243,6 +274,7 @@ function handleJsonLine(line) {
 
   state.lastSampleAt = sample.received_at_ms;
   broadcast({ type: "sample", payload: sample });
+  return true;
 }
 
 function setStatus(status, message, connected) {
