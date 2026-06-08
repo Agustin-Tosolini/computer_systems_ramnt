@@ -3,8 +3,27 @@
 Herramientas para el flujo notebook -> Raspberry Pi -> notebook:
 
 - `gpio_jsonl_reader/`: lector C que se compila en la notebook, se copia a la Raspberry Pi y emite muestras como JSON Lines.
-- `web_content/`: dashboard Docker que se conecta por SSH a la Raspberry Pi, ejecuta el lector remoto y grafica el codigo binario combinado de los GPIO.
+- `web_content/`: dashboard Docker que recibe JSON Lines por HTTP y grafica el codigo binario combinado de los GPIO.
 - `KERNEL_DRIVER_RECOMMENDATIONS.md`: recomendaciones para definir el contrato del modulo/driver de kernel.
+
+## Que hace el proyecto
+
+El flujo completo queda dividido en tres partes:
+
+1. El modulo de kernel en la Raspberry Pi expone `/dev/tp5_gpio`. Cada vez que alguien lee ese archivo, el driver toma una nueva medicion de los GPIO y devuelve algo como:
+
+```text
+gpio_a=17 value=0
+gpio_b=27 value=1
+```
+
+2. El binario `gpio_jsonl_reader-aarch64`, ejecutado en la Raspberry Pi, abre `/dev/tp5_gpio`, lee esos valores, cierra el archivo, espera 500 ms y repite. Por cada lectura genera una linea JSON:
+
+```json
+{"timestamp_ms":1710000000000,"seq":1,"source":"device","value_a":0,"value_b":1,"gpio_a_value":0,"gpio_b_value":1,"binary_code":"01","binary_value":1,"normalized_value":0.333333,"pin_a":17,"pin_b":27}
+```
+
+3. La notebook levanta el dashboard web en Docker. En otra terminal, la notebook ejecuta el lector remoto por SSH y reenvia cada JSON al endpoint local `http://localhost:8080/api/samples`. La web recibe esas muestras y grafica las ultimas 10.
 
 ## Flujo recomendado
 
@@ -18,15 +37,14 @@ make CC=aarch64-linux-gnu-gcc TARGET=build/gpio_jsonl_reader-aarch64
 Copie el binario a la Raspberry Pi:
 
 ```bash
-ssh <usuario>@<raspberry-host> 'mkdir -p ~/tp5'
-scp build/gpio_jsonl_reader-aarch64 <usuario>@<raspberry-host>:~/tp5/gpio_jsonl_reader
-ssh <usuario>@<raspberry-host> 'chmod +x ~/tp5/gpio_jsonl_reader'
+scp -o PubkeyAuthentication=no build/gpio_jsonl_reader-aarch64 ramnt@ramnt.local:/home/ramnt/Desktop/gpio_jsonl_reader-aarch64
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'chmod +x /home/ramnt/Desktop/gpio_jsonl_reader-aarch64'
 ```
 
 Pruebe que el stream funcione antes de levantar la web:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500 --max-samples 10'
 ```
 
 La salida esperada es una linea JSON por muestra:
@@ -38,7 +56,7 @@ La salida esperada es una linea JSON por muestra:
 Si el TP requiere leer una direccion fisica:
 
 ```bash
-ssh <usuario>@<raspberry-host> 'sudo ~/tp5/gpio_jsonl_reader --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'sudo /home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500'
 ```
 
 Use direcciones fisicas/MMIO o regiones reservadas documentadas. No use punteros virtuales del kernel como contrato con user space. Lo mas estable para el grupo es que el modulo exponga un char device y que el lector use `--device`.
@@ -52,13 +70,12 @@ cd ../web_content
 cp .env.example .env
 ```
 
-Edite `.env` con los datos de SSH y el comando remoto:
+Edite `.env` para modo manual:
 
 ```bash
-SSH_HOST=raspberrypi.local
-SSH_USER=pi
-SSH_PRIVATE_KEY=/ssh/id_ed25519
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
+WEB_PORT=8080
+MAX_SAMPLES=10
+REMOTE_COMMAND=
 ```
 
 Levante el dashboard:
@@ -72,6 +89,18 @@ Abra:
 ```text
 http://localhost:8080
 ```
+
+En otra terminal, envie las muestras al dashboard:
+
+```bash
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500' \
+  | while IFS= read -r line; do
+      printf '%s\n' "$line" \
+        | curl -fsS -X POST -H 'Content-Type: text/plain' --data-binary @- http://localhost:8080/api/samples >/dev/null
+    done
+```
+
+`-o PubkeyAuthentication=no` fuerza el uso de password SSH y evita que el agente intente abrir una clave privada bloqueada.
 
 ## Estructura de datos esperada
 

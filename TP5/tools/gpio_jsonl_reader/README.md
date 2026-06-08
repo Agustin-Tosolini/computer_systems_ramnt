@@ -65,12 +65,19 @@ file build/gpio_jsonl_reader-aarch64
 Ejemplo generico, desde `tools/gpio_jsonl_reader`:
 
 ```bash
-ssh <usuario>@<raspberry-host> 'mkdir -p ~/tp5'
-scp build/gpio_jsonl_reader-aarch64 <usuario>@<raspberry-host>:~/tp5/gpio_jsonl_reader
-ssh <usuario>@<raspberry-host> 'chmod +x ~/tp5/gpio_jsonl_reader'
+scp -o PubkeyAuthentication=no build/gpio_jsonl_reader-aarch64 ramnt@ramnt.local:/home/ramnt/Desktop/gpio_jsonl_reader-aarch64
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'chmod +x /home/ramnt/Desktop/gpio_jsonl_reader-aarch64'
 ```
 
-Reemplace `<usuario>` y `<raspberry-host>` por los datos reales de la Raspberry Pi. Si compilo con otro `TARGET`, ajuste el nombre del archivo local.
+En este TP se uso el usuario `ramnt`, host `ramnt.local` y el binario quedo en el Desktop de la Raspberry Pi:
+
+```text
+/home/ramnt/Desktop/gpio_jsonl_reader-aarch64
+```
+
+Si compilo con otro `TARGET`, ajuste el nombre del archivo local y remoto.
+
+La opcion `-o PubkeyAuthentication=no` fuerza autenticacion por password y evita que SSH intente usar una clave privada bloqueada del agente.
 
 ## Ejecutar el binario en la Raspberry Pi
 
@@ -79,7 +86,7 @@ Una vez copiado el binario, se ejecuta por SSH como cualquier comando remoto.
 Ejemplo normal:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500'
 ```
 
 Ese comando queda ejecutandose en loop. Cada 500 ms el programa:
@@ -101,22 +108,26 @@ Ctrl+C
 Para probar una cantidad limitada de muestras:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500 --max-samples 10'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500 --max-samples 10'
 ```
 
 Si `/dev/tp5_gpio` requiere permisos de administrador:
 
 ```bash
-ssh <usuario>@<raspberry-host> 'sudo ~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'sudo /home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500'
 ```
 
-El dashboard Docker usa este mismo comando mediante la variable `REMOTE_COMMAND`:
+Si la web esta en modo manual, envie la salida del lector al endpoint del dashboard:
 
 ```bash
-REMOTE_COMMAND=/home/pi/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500' \
+  | while IFS= read -r line; do
+      printf '%s\n' "$line" \
+        | curl -fsS -X POST -H 'Content-Type: text/plain' --data-binary @- http://localhost:8080/api/samples >/dev/null
+    done
 ```
 
-Si usa otro usuario o copio el binario en otra ruta, ajuste `/home/pi/tp5/gpio_jsonl_reader` por la ruta real.
+El modo automatico por `REMOTE_COMMAND` sigue disponible en la web, pero es opcional.
 
 ## Ejecucion recomendada con dispositivo del modulo
 
@@ -132,19 +143,19 @@ El lector abre el dispositivo, lee el contenido completo, cierra el dispositivo,
 En ese caso:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --interval-ms 500'
 ```
 
 Si el driver no informa los numeros de GPIO en el texto, puede etiquetarlos manualmente:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --pin-a 17 --pin-b 27 --interval-ms 500'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --pin-a 17 --pin-b 27 --interval-ms 500'
 ```
 
 Si el dispositivo entrega muestras binarias como dos `uint32_t` consecutivos:
 
 ```bash
-ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio --device-format binary-u32 --pin-a 17 --pin-b 27'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local '/home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --device /dev/tp5_gpio --device-format binary-u32 --pin-a 17 --pin-b 27'
 ```
 
 ## Ejecucion con direccion fisica
@@ -152,7 +163,7 @@ ssh <usuario>@<raspberry-host> '~/tp5/gpio_jsonl_reader --device /dev/tp5_gpio -
 Use este modo solo si el modulo o el hardware documenta una direccion fisica/MMIO valida. El programa mapea `/dev/mem`, lee dos registros y escribe JSONL.
 
 ```bash
-ssh <usuario>@<raspberry-host> 'sudo ~/tp5/gpio_jsonl_reader --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500 --pin-a 17 --pin-b 27'
+ssh -o PubkeyAuthentication=no ramnt@ramnt.local 'sudo /home/ramnt/Desktop/gpio_jsonl_reader-aarch64 --mem-address 0x10000000 --offset-a 0 --offset-b 4 --width 32 --interval-ms 500 --pin-a 17 --pin-b 27'
 ```
 
 Opciones importantes:
