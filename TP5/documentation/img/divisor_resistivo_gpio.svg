@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650">
+  <defs>
+    <style>
+      .title { font-family: Arial, sans-serif; font-size: 28px; font-weight: 700; fill: #0f172a; }
+      .label { font-family: Arial, sans-serif; font-size: 18px; font-weight: 700; fill: #0f172a; }
+      .small { font-family: Arial, sans-serif; font-size: 15px; fill: #334155; }
+      .wire { stroke: #111827; stroke-width: 3; fill: none; }
+      .node { fill: #111827; }
+      .rail { stroke: #64748b; stroke-width: 2; fill: none; }
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 2; rx: 10; }
+      .note { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 10; }
+      .res { stroke: #111827; stroke-width: 3; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1100" height="650" fill="#ffffff"/>
+  <text x="550" y="45" text-anchor="middle" class="title">Adaptacion de nivel con divisores resistivos</text>
+
+  <rect x="55" y="105" width="180" height="120" class="box"/>
+  <text x="145" y="140" text-anchor="middle" class="label">Arduino</text>
+  <text x="145" y="170" text-anchor="middle" class="small">salidas 0 V / 5 V</text>
+  <text x="145" y="198" text-anchor="middle" class="small">D2 y D3</text>
+
+  <rect x="835" y="105" width="210" height="120" class="box"/>
+  <text x="940" y="140" text-anchor="middle" class="label">Raspberry Pi 5</text>
+  <text x="940" y="170" text-anchor="middle" class="small">entradas GPIO</text>
+  <text x="940" y="198" text-anchor="middle" class="small">BCM17 y BCM27</text>
+
+  <text x="360" y="105" text-anchor="middle" class="label">Senal A</text>
+  <path d="M 235 145 L 300 145" class="wire"/>
+  <path d="M 300 145 l 15 -20 l 30 40 l 30 -40 l 30 40 l 30 -40 l 15 20" class="res"/>
+  <path d="M 450 145 L 600 145" class="wire"/>
+  <circle cx="600" cy="145" r="6" class="node"/>
+  <path d="M 600 145 L 835 145" class="wire"/>
+  <text x="375" y="105" class="small">R1 = 10 kOhm</text>
+  <text x="705" y="132" class="small">GPIO17 / gpio_a</text>
+  <path d="M 600 145 L 600 225" class="wire"/>
+  <path d="M 600 225 l -20 15 l 40 30 l -40 30 l 40 30 l -20 15" class="res"/>
+  <path d="M 600 345 L 600 390" class="wire"/>
+  <text x="625" y="285" class="small">R2 = 18 kOhm</text>
+
+  <text x="360" y="415" text-anchor="middle" class="label">Senal B</text>
+  <path d="M 235 455 L 300 455" class="wire"/>
+  <path d="M 300 455 l 15 -20 l 30 40 l 30 -40 l 30 40 l 30 -40 l 15 20" class="res"/>
+  <path d="M 450 455 L 600 455" class="wire"/>
+  <circle cx="600" cy="455" r="6" class="node"/>
+  <path d="M 600 455 L 835 455" class="wire"/>
+  <text x="375" y="415" class="small">R1 = 10 kOhm</text>
+  <text x="705" y="442" class="small">GPIO27 / gpio_b</text>
+  <path d="M 600 455 L 600 515" class="wire"/>
+  <path d="M 600 515 l -20 15 l 40 30 l -40 30 l 40 30 l -20 15" class="res"/>
+  <text x="625" y="575" class="small">R2 = 18 kOhm</text>
+
+  <path d="M 145 225 L 145 610 L 600 610" class="rail"/>
+  <path d="M 600 390 L 600 610" class="rail"/>
+  <path d="M 600 640 L 600 610" class="rail"/>
+  <path d="M 600 610 L 940 610 L 940 225" class="rail"/>
+  <text x="250" y="595" class="small">GND Arduino y GND Raspberry Pi comunes</text>
+
+  <rect x="690" y="255" width="355" height="105" class="note"/>
+  <text x="867" y="287" text-anchor="middle" class="label">Calculo por divisor</text>
+  <text x="867" y="317" text-anchor="middle" class="small">Vgpio = Vin * R2 / (R1 + R2)</text>
+  <text x="867" y="343" text-anchor="middle" class="small">5 V * 18 kOhm / 28 kOhm = 3.21 V</text>
+</svg>

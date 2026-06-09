@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TP5 GPIO Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Raspberry Pi GPIO</p>
+          <h1>TP5 Dashboard</h1>
+        </div>
+        <div class="status" id="statusBadge">
+          <span class="dot"></span>
+          <span id="statusText">Inicializando</span>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Ultimas muestras">
+        <article class="metric">
+          <span>GPIO A</span>
+          <strong id="valueA">--</strong>
+        </article>
+        <article class="metric">
+          <span>GPIO B</span>
+          <strong id="valueB">--</strong>
+        </article>
+        <article class="metric">
+          <span>Muestras</span>
+          <strong id="sampleCount">0</strong>
+        </article>
+        <article class="metric wide">
+          <span>Codigo</span>
+          <strong id="sourceText">Sin datos</strong>
+        </article>
+      </section>
+
+      <section class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <h2>Codigo binario GPIO</h2>
+            <p id="commandText">Esperando configuracion SSH</p>
+          </div>
+          <button id="clearButton" type="button">Limpiar</button>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="samplesChart"></canvas>
+        </div>
+      </section>
+
+      <section class="log-panel">
+        <h2>Estado</h2>
+        <pre id="logOutput"></pre>
+      </section>
+    </main>
+
+    <script src="/vendor/chart.js/chart.umd.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
