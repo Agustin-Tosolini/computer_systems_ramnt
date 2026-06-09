@@ -26,6 +26,10 @@ El procedimiento se organizó en una secuencia práctica: primero se generó una
 
 El sistema desarrollado puede resumirse como una cadena de adquisición de dos bits. El sketch de Arduino produce las combinaciones `00`, `01`, `10` y `11`; esas señales se conectan al circuito de entrada de la Raspberry Pi; el módulo de kernel lee los GPIO BCM configurados; el binario `gpio_jsonl_reader-aarch64` convierte cada lectura en una línea JSON; y la notebook recibe esas líneas para enviarlas al dashboard disponible en `http://localhost:8080`.
 
+El siguiente diagrama de bloques sintetiza la estructura general del proyecto. La señal se origina en el Arduino, atraviesa una etapa de adaptación de nivel, ingresa a la Raspberry Pi y es leída por el módulo de kernel. Luego, un programa de espacio de usuario transforma la lectura en JSON Lines y la notebook recibe esas muestras por SSH para publicarlas en la página web.
+
+![](img/diagrama_bloques_tp5.svg "Diagrama de bloques del flujo Arduino, Raspberry Pi, SSH y dashboard web")
+
 Desde el punto de vista del contrato entre componentes, el punto central es el archivo de dispositivo `/dev/tp5_gpio`. Este archivo no es un archivo regular: representa una interfaz de carácter registrada por el módulo de kernel. Cada lectura sobre él dispara una nueva medición de las entradas GPIO y devuelve un texto con el siguiente formato:
 
 ```text
@@ -50,9 +54,82 @@ const int gpioA = 2;
 const int gpioB = 3;
 ```
 
-En la implementación física se conectaron la Raspberry Pi, el circuito sobre protoboard y la placa Arduino utilizada para generar la señal. Dado que las entradas GPIO de la Raspberry Pi 5 trabajan a 3.3 V y no son tolerantes a 5 V, el circuito debe incluir adaptación de nivel cuando la placa generadora entrega niveles lógicos de 5 V.
+### Montaje físico realizado
+
+La siguiente imagen corresponde al montaje físico utilizado durante el trabajo práctico. En ella se observa la Raspberry Pi 5 conectada al circuito armado sobre protoboard y a la placa Arduino encargada de generar las dos señales digitales de entrada. Esta conexión permitió validar el comportamiento del módulo de kernel sobre un caso real, no solamente sobre una simulación o una salida generada por software.
+
+Dado que las entradas GPIO de la Raspberry Pi 5 trabajan a 3.3 V y no son tolerantes a 5 V, el circuito incluye una etapa de adaptación de nivel cuando la placa generadora entrega niveles lógicos de 5 V. Esa adaptación se detalla en la sección siguiente mediante el cálculo de los divisores resistivos.
 
 ![](img/imagen_esquematico_circuito.jpeg "Circuito físico utilizado para generar y leer las señales digitales")
+
+## Adaptación de nivel y cálculo de resistencias
+
+Como el Arduino utilizado entrega niveles lógicos de `0 V` y `5 V`, no resulta seguro conectar sus salidas directamente a los GPIO de la Raspberry Pi. Para adecuar cada señal al nivel esperado por la placa se empleó un divisor resistivo independiente por cada línea digital. En la configuración adoptada, la salida `D2` del Arduino se conectó al GPIO BCM `17` de la Raspberry Pi, asociado a `gpio_a`, y la salida `D3` se conectó al GPIO BCM `27`, asociado a `gpio_b`.
+
+El esquema eléctrico utilizado para cada señal es equivalente al siguiente:
+
+```text
+Arduino Dx ---- R1 ----+---- GPIO Raspberry Pi
+                       |
+                       R2
+                       |
+                      GND
+```
+
+El cálculo del divisor resistivo se realiza mediante:
+
+```text
+V_GPIO = V_IN * R2 / (R1 + R2)
+```
+
+Con `R1 = 10 kΩ`, `R2 = 18 kΩ` y una entrada alta de `V_IN = 5 V`, el valor aplicado al GPIO queda:
+
+```text
+V_GPIO = 5 V * 18 kΩ / (10 kΩ + 18 kΩ)
+V_GPIO = 5 V * 18 / 28
+V_GPIO = 3.214 V
+```
+
+Por lo tanto, cuando el Arduino entrega un nivel alto, la Raspberry Pi recibe aproximadamente `3.21 V`, valor compatible con una entrada lógica de 3.3 V. Cuando el Arduino entrega un nivel bajo, `V_IN = 0 V`, por lo que el GPIO también recibe `0 V`.
+
+La corriente que circula por cada divisor en estado alto es:
+
+```text
+I = V_IN / (R1 + R2)
+I = 5 V / 28 kΩ
+I = 0.178 mA
+```
+
+Este valor es bajo, por lo que el divisor no representa una carga significativa para la salida digital del Arduino. Además, se conectó la referencia de tierra de ambos sistemas, ya que sin una masa común la Raspberry Pi no podría interpretar correctamente los niveles lógicos provenientes del Arduino.
+
+![](img/divisor_resistivo_gpio.svg "Divisores resistivos usados para adaptar las señales del Arduino a GPIO de Raspberry Pi")
+
+El mapeo de conexiones considerado en el informe es el siguiente:
+
+| Señal | Pin Arduino | Adaptación | GPIO Raspberry Pi | Pin físico Raspberry Pi | Nombre en el driver |
+| --- | --- | --- | --- | --- | --- |
+| Señal A | D2 | R1 = 10 kΩ, R2 = 18 kΩ | BCM17 | Pin 11 | `gpio_a` |
+| Señal B | D3 | R1 = 10 kΩ, R2 = 18 kΩ | BCM27 | Pin 13 | `gpio_b` |
+| Referencia | GND | Masa común | GND | GND del header | referencia eléctrica |
+
+## Tabla de estados esperados
+
+El sketch de Arduino genera cuatro combinaciones posibles sobre las dos señales. Como el driver toma `gpio_a` como el bit más significativo y `gpio_b` como el bit menos significativo, el código binario resultante se calcula como:
+
+```text
+binary_value = (gpio_a_value << 1) | gpio_b_value
+```
+
+La tabla siguiente resume el comportamiento esperado para cada estado de la secuencia:
+
+| Estado | Arduino D2 | Arduino D3 | GPIO17 / `gpio_a` | GPIO27 / `gpio_b` | Código esperado | Valor decimal | Valor normalizado |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | LOW / 0 V | LOW / 0 V | 0 | 0 | `00` | 0 | 0 |
+| 2 | LOW / 0 V | HIGH / 5 V | 0 | 1 | `01` | 1 | 0.333333 |
+| 3 | HIGH / 5 V | LOW / 0 V | 1 | 0 | `10` | 2 | 0.666667 |
+| 4 | HIGH / 5 V | HIGH / 5 V | 1 | 1 | `11` | 3 | 1 |
+
+Cada estado permanece activo durante aproximadamente 500 ms. Por este motivo, al observar el dashboard se espera una señal escalonada que recorra los niveles `00`, `01`, `10` y `11`, repitiéndose de forma periódica.
 
 ## Preparación para compilación cruzada
 
@@ -269,36 +346,9 @@ En las capturas del dashboard se observa el estado `Recibiendo muestras por POST
 
 ![](img/grafico_pagina_web1.jpeg "Dashboard recibiendo muestras y graficando el código GPIO")
 
-![](img/grafico_pagina_web2.jpeg "Evolución temporal de la secuencia binaria en la página web")
-
-# Análisis técnico
-
-## Separación entre kernel space y user space
-
-La solución respeta una separación adecuada entre el espacio del kernel y el espacio de usuario. El módulo cargable concentra las operaciones que requieren privilegios y conocimiento del hardware: reserva de GPIO, lectura de valores y registro del dispositivo de carácter. El lector C, en cambio, opera con primitivas estándar de espacio de usuario: abre un archivo, lee texto, lo interpreta y produce JSON.
-
-Esta separación es importante porque evita exponer punteros virtuales del kernel o direcciones internas como contrato con la aplicación. En su lugar, se utiliza una interfaz convencional de Linux: un nodo en `/dev`. Este enfoque es más estable, más fácil de probar y menos riesgoso desde el punto de vista de seguridad y mantenimiento.
-
-## Coherencia de los datos observados
-
-El circuito genera cuatro estados posibles y el dashboard representa esos estados como códigos binarios. El lector toma los valores individuales, los normaliza a bits y calcula:
-
-```text
-binary_value = (gpio_a_value << 1) | gpio_b_value
-normalized_value = binary_value / 3
-```
-
-Por este motivo, la página puede mostrar tanto el código binario (`00`, `01`, `10`, `11`) como un nivel numérico normalizado para graficación. La evidencia visual muestra transiciones escalonadas, lo cual coincide con el comportamiento esperado para una secuencia digital discreta con una permanencia temporal fija.
-
-## Consideraciones de hardware
-
-La Raspberry Pi 5 utiliza GPIO de 3.3 V. Por lo tanto, cualquier señal externa proveniente de una placa de 5 V debe adaptarse antes de llegar a los pines de la Raspberry Pi. Este punto no es accesorio: una conexión directa desde una salida de 5 V hacia un GPIO de la Raspberry Pi puede dañar permanentemente la placa.
-
-La práctica, por tanto, no se limita al software. El correcto funcionamiento del driver y del dashboard depende de que las señales eléctricas lleguen a la Raspberry Pi con niveles lógicos válidos y seguros.
-
 # Conclusión
 
-El trabajo práctico consistió en construir una cadena completa de adquisición, procesamiento y visualización de señales digitales utilizando una Raspberry Pi 5 como sistema embebido Linux. Para generar una entrada controlada, se programó un Arduino con una secuencia binaria periódica de dos bits (`00`, `01`, `10`, `11`). Esas señales se conectaron al circuito de entrada de la Raspberry Pi, contemplando que sus GPIO trabajan a 3.3 V y requieren niveles eléctricos seguros.
+El trabajo práctico consistió en construir una cadena completa de adquisición, procesamiento y visualización de señales digitales utilizando una Raspberry Pi 5 como sistema embebido Linux. Para generar una entrada controlada, se programó un Arduino con una secuencia binaria periódica de dos bits (`00`, `01`, `10`, `11`). Esas señales se conectaron al circuito de entrada de la Raspberry Pi mediante divisores resistivos de `10 kΩ` y `18 kΩ`, reduciendo los niveles altos de `5 V` a aproximadamente `3.21 V`, valor adecuado para entradas GPIO de 3.3 V.
 
 La etapa principal del TP fue la construcción de un módulo de kernel para Raspberry Pi 5 mediante compilación cruzada. El módulo no se compiló en la placa, sino en la notebook, configurando el entorno con `ARCH=arm64`, `CROSS_COMPILE=aarch64-linux-gnu-` y un árbol de kernel preparado para la versión ejecutada por la Raspberry Pi. Esta etapa permitió generar el archivo `dual_gpio_input_module.ko` para arquitectura ARM64 sin utilizar la Raspberry Pi como máquina de compilación. Antes de transferirlo, el artefacto podía verificarse con `file` para confirmar que correspondiera a AArch64 y no a la arquitectura nativa de la notebook.
 
@@ -309,4 +359,3 @@ Sobre esa interfaz del kernel se ejecutó un programa C de espacio de usuario, t
 Finalmente, la notebook levantó una aplicación web dockerizada que expuso el dashboard en `http://localhost:8080`. Cada línea JSON recibida desde la Raspberry Pi fue enviada al endpoint `POST /api/samples`, permitiendo representar en tiempo real el estado de los GPIO, el código binario actual, la cantidad de muestras recibidas y una gráfica temporal escalonada. De esta forma, el TP integró generación de señales, driver de kernel, compilación cruzada, ejecución remota por SSH, comunicación entre espacio de kernel y espacio de usuario, serialización de datos y visualización web en un único flujo funcional.
 
 En síntesis, se comprobó que un módulo de kernel puede desarrollarse y compilarse fuera del dispositivo de destino, transferirse a una Raspberry Pi, cargarse dinámicamente en el kernel y utilizarse como puente controlado entre hardware y aplicaciones de usuario. La solución final dejó una frontera clara: el kernel se encargó de leer el hardware y exponer `/dev/tp5_gpio`, mientras que el espacio de usuario se ocupó de transformar, transportar y visualizar la información.
-
